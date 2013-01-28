@@ -15,88 +15,46 @@ jQuery.fn.extend({
 	}
 });
 
-if ($.browser.msie && $.browser.version == "6.0" && !$.support.style)
-{
-	$(document).ready(function () {
-  		new DialogBox_show('640', '<p class="p" style="font-size: 14px">你目前使用的浏览器版本过低，将不能使用本站部分功能。请升级你的 <a href="http://windows.microsoft.com/zh-CN/internet-explorer/downloads/ie-8">Internet Explorer 浏览器</a>获取最佳的浏览效果<br /><br /><div align="center"><a href="http://www.google.cn/chrome/eula.html?hl=zh-CN&platform=win" style="font-size: 16px">点击下载谷歌浏览器</a> | <a href="http://windows.microsoft.com/zh-CN/internet-explorer/downloads/ie-8" style="font-size: 16px">点击下载 Internet Explorer 浏览器</a></div></p>', '提示信息', '');
-	});
-}
-
 // Test:
 /*$(document).ready(function () {
 	$('.footer a').highText('关于', 'span', 't');
 });*/
-
-/*function qDialogue(content, title) {
-   $('<div />').qtip(
-   {
-      content: {
-         text: content,
-         title: title
-      },
-      position: {
-         my: 'center',
-         at: 'center', // Center it...
-         target: $(window) // ... in the window
-      },
-      show: {
-         ready: true, // Show it straight away
-         modal: {
-            on: true, // Make it modal (darken the rest of the page)...
-            blur: false // ... but don't close the tooltip when clicked
-         }
-      },
-      hide: false, // We'll hide it maunally so disable hide events
-      style: 'ui-tooltip-light ui-tooltip-rounded ui-tooltip-dialogue', // Add a few styles
-      events: {
-         // Hide the tooltip when any buttons in the dialogue are clicked
-         render: function(event, api) {
-            $('button', api.elements.content).click(api.hide);
-         },
-         // Destroy the tooltip once it's hidden as we no longer need it!
-         hide: function(event, api) { api.destroy(); }
-      }
-   });
-}*/
-
-function qAlert(message)
-{
-  //qDialogue($('<p />', { text: message,'class':'p' }).add($('<button />', { text: '确定', 'style': 'width:100%; text-align:center;' })), '提示信息');
-
-  /************************
-	  
-	  DialogBox_show( boxWidth,html,titleTxt,butTxt )
-	  
-	  参数说明：
-	  1、boxWidth为弹出盒子的宽度，可以设置大小，比如：255，如果不设置则为默认450的宽。
-	  2、html可以任意添加代码、样式以及脚本。
-	  3、titleTxt为头部的提示信息。
-	  4、butTxt为按钮文字。
-	  
-  ************************/
-  var html  = '<p class="p">'+ message +'</p>';
-  
-  new DialogBox_show( '255', html,'提示信息', '确定');
-}
-
-//公用弹出框
-function dfAlert(){
-	
-}
 
 function ajax_request(url, params)
 {	
 	if (params)
 	{
 		$.post(url, params, function (result) {
-			qAlert(result.err);
-		}, 'json');
+			if (result.err)
+			{
+				$.alert(result.err);
+			}
+			else if (result.rsm && result.rsm.url)
+			{
+				window.location = decodeURIComponent(result.rsm.url);
+			}
+			else
+			{
+				window.location.reload();
+			}
+		}, 'json').error(function (error) { if ($.trim(error.responseText) != '') { alert('发生错误, 返回的信息: ' + error.responseText); } });
 	}
 	else
 	{
 		$.get(url, function (result) {
-			qAlert(result.err);
-		}, 'json');
+			if (result.err)
+			{
+				$.alert(result.err);
+			}
+			else if (result.rsm && result.rsm.url)
+			{
+				window.location = decodeURIComponent(result.rsm.url);
+			}
+			else
+			{
+				window.location.reload();
+			}
+		}, 'json').error(function (error) { if ($.trim(error.responseText) != '') { alert('发生错误, 返回的信息: ' + error.responseText); } });
 	}
 	
 	return false;
@@ -106,41 +64,75 @@ function ajax_post(formEl, processer)	// 表单对象，用 jQuery 获取，回�
 {	
 	if (typeof(processer) != 'function')
 	{
-		processer = _ajax_post_processer;
-	}
-	
-	formEl.ajaxSubmit({
-		dataType:	'json',
-		success:	processer
-	});
-}
-
-function _ajax_post_processer(result)
-{
-	if (typeof(result.errno) == 'undefined')
-	{
-		qAlert(result);
-	}
-	else if (result.errno != 1)
-	{
-		qAlert(result.err);
+		processer = _ajax_post_processer_qAlert;
 	}
 	else
 	{
-		if (typeof(result.rsm) != 'undefined')
+		if (document.getElementById('tip_error_message'))
 		{
-			if (result.rsm.url)
-			{
-				window.location = decodeURIComponent(result.rsm.url);
-			}
-			else
-			{
-				window.location.reload();
-			}
+			$('#tip_error_message').hide();
+		}
+		
+		$('span.err').hide();
+	}
+	
+	var custom_data = {_post_type:'ajax'};
+	
+	formEl.ajaxSubmit({
+		dataType: 'json',
+		data: custom_data,
+		success: processer,
+		error:	function (error) { if ($.trim(error.responseText) != '') { alert('发生错误, 返回的信息: ' + error.responseText); } }
+	});
+}
+
+function _ajax_post_processer_qAlert(result)
+{
+	return _ajax_post_processer(result)
+}
+
+function _ajax_post_processer(result)
+{	
+	if (typeof(result.errno) == 'undefined')
+	{
+		$.alert(result);
+	}
+	else if (result.errno != 1)
+	{
+		$.alert(result.err);
+	}
+	else
+	{		
+		if (result.rsm && result.rsm.url)
+		{
+			window.location = decodeURIComponent(result.rsm.url);
 		}
 		else
 		{
 			window.location.reload();
+		}
+	}
+}
+
+function _ajax_post_i_alert_processer(result)
+{
+	if (typeof(result.errno) == 'undefined')
+	{
+		alert(result);
+	}
+	else if (result.errno != 1)
+	{
+		alert(result.err);
+	}
+	else
+	{
+		if (result.rsm && result.rsm.url)
+		{
+			window.location = decodeURIComponent(result.rsm.url);
+		}
+		else
+		{
+			$('#i_gloBoxl').remove();
 		}
 	}
 }
@@ -157,16 +149,9 @@ function _ajax_post_alert_processer(result)
 	}
 	else
 	{
-		if (typeof(result.rsm) != 'undefined')
+		if (result.rsm && result.rsm.url)
 		{
-			if (result.rsm.url)
-			{
-				window.location = decodeURIComponent(result.rsm.url);
-			}
-			else
-			{
-				window.location.reload();
-			}
+			window.location = decodeURIComponent(result.rsm.url);
 		}
 		else
 		{
@@ -174,104 +159,6 @@ function _ajax_post_alert_processer(result)
 		}
 	}
 }
-
-
-function _ajax_post_tip_processer(result)
-{
-	alert(result.err);
-	
-	if (result.errno == 1)
-	{
-		if (typeof(result.rsm) != 'undefined')
-		{
-			if (result.rsm.url)
-			{
-				window.location = decodeURIComponent(result.rsm.url);
-			}
-		}
-	}
-}
-
-//自动计算字数
-function data_len(data)
-{
-	var int_length=0;
-	for (var i = 0; i < data.length; i++)
-	{
-   		if ((data.charCodeAt(i) < 0) || (data.charCodeAt(i) > 255))
-		{
-    		int_length += 2;
-		}
-		else
-    	{
-			int_length += 1;
-		}
-	}
-	return int_length;
-}
-
-function set_string(str,len)
-{
-	var strlen = 0; 
-	var s = "";
-	for(var i = 0;i < str.length;i++)
-	{
-		if(str.charCodeAt(i) > 128)
-		{
-			strlen += 2;
-		}
-		else
-		{ 
-			strlen++;
-		}
-		s += str.charAt(i);
-		if(strlen >= len)
-		{ 
-			return s ;
-		}
-	}
-	return s;
-}
-
-/*function focus_competition(el, text_el, competition_id)
-{
-	if (el.hasClass('cur'))
-	{
-		text_el.html('关注');
-	}
-	else
-	{
-		text_el.html('取消关注');
-	}
-	
-	el.addClass('load');
-	
-	$.get('/competitions/?c=competitions&act=competitions_focus_ajax&competitions_id=' + competition_id + '&rnd=' + Math.random(), function (data)
-	{
-		if (data.errno == 1)
-		{
-			if (data.rsm.type == 'add')
-			{
-				el.addClass('cur');
-			}
-			else
-			{
-				el.removeClass('cur');
-			}
-		}
-		else
-		{
-			if (data.err != '') alert(data.err);
-			
-			if (data.rsm.url != '')
-			{
-				window.location = decodeURIComponent(data.rsm.url);
-			}
-		}
-		
-		el.removeClass('load');
-	}, 'json');
-}*/
 
 function focus_question(el, text_el, question_id)
 {
@@ -286,7 +173,7 @@ function focus_question(el, text_el, question_id)
 	
 	el.addClass('load');
 	
-	$.get(G_BASE_URL + '/question/?c=ajax&act=focus&question_id=' + question_id + '&vote_value=-1&rnd=' + Math.random(), function (data)
+	$.get(G_BASE_URL + '/question/ajax/focus/question_id-' + question_id, function (data)
 	{
 		if (data.errno == 1)
 		{
@@ -301,12 +188,12 @@ function focus_question(el, text_el, question_id)
 		}
 		else
 		{
-			if (data.err != '')
+			if (data.err)
 			{
-				alert(data.err);
+				$.alert(data.err);
 			}
 			
-			if (data.rsm.url != '')
+			if (data.rsm.url)
 			{
 				window.location = decodeURIComponent(data.rsm.url);
 			}
@@ -318,31 +205,38 @@ function focus_question(el, text_el, question_id)
 
 function focus_topic(el, text_el, topic_id)
 {
+	if (el.hasClass('cur'))
+	{
+		text_el.html('关注');
+	}
+	else
+	{
+		text_el.html('取消关注');
+	}
+	
 	el.addClass('load');
 	
-	$.get(G_BASE_URL + '/topic/?act=focus_topic&topic_id=' + topic_id + '&rnd=' + Math.random(), function (data)
+	$.get(G_BASE_URL + '/topic/ajax/focus_topic/topic_id-' + topic_id, function (data)
 	{
 		if (data.errno == 1)
 		{
 			if (data.rsm.type == 'add')
 			{
 				el.addClass('cur');
-				text_el.html('取消关注');
 			}
 			else
 			{
 				el.removeClass('cur');
-				text_el.html('关注');
 			}
 		}
 		else
 		{
-			if (data.err != '')
+			if (data.err)
 			{
-				alert(data.err);
+				$.alert(data.err);
 			}
 			
-			if (data.rsm.url != '')
+			if (data.rsm.url)
 			{
 				window.location = decodeURIComponent(data.rsm.url);
 			}
@@ -354,31 +248,38 @@ function focus_topic(el, text_el, topic_id)
 
 function follow_people(el, text_el, uid)
 {
+	if (el.hasClass('cur'))
+	{
+		text_el.html('关注');
+	}
+	else
+	{
+		text_el.html('取消关注');
+	}
+	
 	el.addClass('load');
 	
-	$.get(G_BASE_URL + '/follow/?act=people_follow_edit_ajax_action&uid=' + uid + '&rnd=' + Math.random(), function (data)
+	$.get(G_BASE_URL + '/follow/ajax/follow_people/uid-' + uid, function (data)
 	{
 		if (data.errno == 1)
 		{
 			if (data.rsm.type == 'add')
 			{
 				el.addClass('cur');
-				text_el.html('取消关注');
 			}
 			else
 			{
 				el.removeClass('cur');
-				text_el.html('关注');
 			}
 		}
 		else
 		{
-			if (data.err != '')
+			if (data.err)
 			{
-				alert(data.err);
+				$.alert(data.err);
 			}
 			
-			if (data.rsm.url != '')
+			if (data.rsm.url)
 			{
 				window.location = decodeURIComponent(data.rsm.url);
 			}
@@ -388,90 +289,182 @@ function follow_people(el, text_el, uid)
 	}, 'json');
 }
 
-function show_prompt(data, w, h)
+function check_notifications()
 {
-	return $.fancybox(data, {
-		width: w,
-		height: h,
-		autoSize: false,
-		closeClick: false
-	});
-}
-
-function update_signature(signature)
-{
-	if (!signature)
+	if (G_USER_ID == 0)
 	{
-		qAlert('请用一句话介绍自己');
-		
 		return false;
 	}
 	
-	$.post(G_BASE_URL + '/account/?c=ajax&act=update_signature', 'signature=' + signature, function (result) {			
-		qAlert(result.err);
-	}, "json");
+	$.get(G_BASE_URL + '/home/ajax/notifications/', function (result) {
+		
+		$('.inbox_num').html(Number(result.rsm.inbox_num));
+		
+		last_unread_notification = G_UNREAD_NOTIFICATION;
+		
+		G_UNREAD_NOTIFICATION = Number(result.rsm.notifications_num);
+
+		if (G_UNREAD_NOTIFICATION > 0)
+		{
+			if (G_UNREAD_NOTIFICATION != last_unread_notification)
+			{
+				reload_notification_list();
+				
+				$('#notifications_num').html(G_UNREAD_NOTIFICATION);
+			}
+		}
+		else
+		{
+			if ($('#header_notification_list').length > 0)
+			{
+				$("#header_notification_list").html('<p style="padding: 0" align="center">没有未读通知</p>').next('[name=operater]').hide();
+			}
+
+			if ($("#index_notification").length > 0)
+			{
+				$("#index_notification").fadeOut().find('[name=notification_unread_num]').html(0).parent().next('ul#notification_list').html('');
+			}
+
+			if (('#tab_all_notifications').length > 0)
+			{
+				$('#tab_all_notifications').click();
+			}
+		}
+		
+		if (Number(result.rsm.notifications_num) > 0)
+		{
+			document.title = '(' + (Number(result.rsm.notifications_num) + Number(result.rsm.inbox_num)) + ') ' + document_title;
+			
+			$('#notifications_num').show();
+		}
+		else
+		{
+			$('#notifications_num').hide();
+		}
+		
+		if (Number(result.rsm.inbox_num) > 0)
+		{
+			$('.inbox_num').show();
+		}
+		else
+		{
+			$('.inbox_num').hide();
+		}
+		
+		if (((Number(result.rsm.notifications_num) + Number(result.rsm.inbox_num))) > 0)
+		{
+			document.title = '(' + (Number(result.rsm.notifications_num) + Number(result.rsm.inbox_num)) + ') ' + document_title;
+		}
+	}, 'json');
 }
 
-function push_weibo(array_data)
+function reload_notification_list()
 {
-	$.post(G_BASE_URL + '/account/?c=ajax&act=weibo_push_ajax', array_data, function (result) {			
-		alert(result.err);
-		
-		if (result.errno == 1)
-		{
-			window.location.reload();
-		}
-	}, "json");
-}
-
-function send_invite_question_mail(array_data)
-{
-	$.post(G_BASE_URL + '/account/?c=ajax&act=send_invite_question_mail', array_data, function (result) {			
-		alert(result.err);
-		
-		if (result.errno == 1)
-		{
-			window.location.reload();
-		}
-	}, "json");
-}
-
-/*function send_invite_competition_mail(array_data)
-{
-	$.post('/account/?c=ajax&act=send_invite_competition_mail', array_data, function (result) {			
-		alert(result.err);
-		
-		if (result.errno == 1)
-		{
-			window.location.reload();
-		}
-	}, "json");
-}*/
-
-function mark_notifications(notify_id)
-{
-	if (notify_id)
+	if ($("#index_notification").length > 0)
 	{
-		$("#notification_" + notify_id).remove();
-		$("#announce_num").html(String(Number($("#announce_num").html()) - 1));
+		$("#index_notification").fadeIn().find('[name=notification_unread_num]').html(G_UNREAD_NOTIFICATION).parent().next('ul#notification_list').html('<p align="center" style="padding: 15px 0"><img src="' + G_STATIC_URL + '/common/loading_b.gif"/></p>');
+
+		$.get(G_BASE_URL + '/notifications/ajax/list/flag-0__page-0', function (index_response)
+		{
+			if (index_response.length)
+			{
+				$("#index_notification").find('ul#notification_list').html(index_response);
+				
+				notification_show(5);
+			}
+		});
+	}
+
+	if ($("#header_notification_list").length > 0)
+	{
+		$("#header_notification_list").html('<p align="center"><img src="' + G_STATIC_URL + '/common/loading_b.gif"/></p>');
+
+		$.get(G_BASE_URL + '/notifications/ajax/list/flag-0__page-0__per_page-5__template-header_list', function (response)
+		{
+			if (response.length)
+			{
+				$("#header_notification_list").html(response).next('[name=operater]').show();
+				
+			}
+			else
+			{
+				$("#header_notification_list").html('<p style="padding: 0" align="center">没有未读通知</p>').next('[name=operater]').hide();
+			}
+		});
+	}
+}
+
+function read_notification(notification_id, el, reload)
+{
+	if (notification_id)
+	{
+		el.remove();
+
 		notification_show(5);
-		var url = G_BASE_URL + '/notifications/?act=r_notify&notify_id=' + notify_id + '&read_type=1&rnd=' + Math.random();
+		
+		if ($("#announce_num").length > 0)
+		{
+			$("#announce_num").html(String(G_UNREAD_NOTIFICATION-1));
+		}
+		
+		if ($("#notifications_num").length > 0)
+		{
+			$("#notifications_num").html(String(G_UNREAD_NOTIFICATION-1));
+		}
+		
+		var url = G_BASE_URL + '/notifications/ajax/read_notification/notification_id-' + notification_id + '__read_type-1';
 	}
 	else
 	{
-		$("#notitile_all").fadeOut();
-		var url = G_BASE_URL + '/notifications/?act=r_notify&read_type=0&rnd=' + Math.random();
+		if ($("#index_notification").length > 0)
+		{
+			$("#index_notification").fadeOut();
+		}
+		
+		var url = G_BASE_URL + '/notifications/ajax/read_notification/read_type-0';
 	}
 	
 	$.get(url, function (respose)
 	{
-		notifications();
+		check_notifications();
+
+		if (reload)
+		{
+			window.location.reload();
+		}
 	});
+}
+
+function notification_show(max)
+{
+	if ($('#index_notification').length > 0)
+	{
+		var n_count = 0;
+		
+		$('#index_notification').find('ul#notification_list').find("li").each(function()
+		{
+			if (n_count < 5)
+			{
+				$(this).show();
+			}
+			else
+			{
+				$(this).hide();
+			}
+			
+			n_count++;
+		});
+		
+		if ($('#index_notification').find('ul#notification_list').find("li").size() == 0)
+		{
+			$('#index_notification').fadeOut();
+		}
+	}
 }
 
 function ajax_load(url, target)
 {
-	$(target).html('<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/css/img/loading_b.gif" alt="" /></p>');
+	$(target).html('<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/common/loading_b.gif" alt="" /></p>');
 	
 	$.get(url, function (response)
 		{
@@ -489,17 +482,21 @@ function ajax_load(url, target)
 var _bp_more_o_inners = new Array();
 var _bp_more_pages = new Array();
 
-function bp_more_load(url, bp_more_o_inner, target_el)
+function bp_more_load(url, bp_more_o_inner, target_el, start_page, callback_func)
 {
-	//if (typeof(_bp_more_pages[bp_more_o_inner.attr('id')]) == 'undefined')
-	//{
-		_bp_more_pages[bp_more_o_inner.attr('id')] = 0;
-	//}
+	if (!bp_more_o_inner.attr('id'))
+	{
+		return false;
+	}
 	
-	//if (typeof(_bp_more_o_inners[bp_more_o_inner.attr('id')]) == 'undefined')
-	//{
-		_bp_more_o_inners[bp_more_o_inner.attr('id')] = bp_more_o_inner.html();
-	//}
+	if (!start_page)
+	{
+		start_page = 0
+	}
+	
+	_bp_more_pages[bp_more_o_inner.attr('id')] = start_page;
+	
+	_bp_more_o_inners[bp_more_o_inner.attr('id')] = bp_more_o_inner.html();
 	
 	bp_more_o_inner.unbind('click');
 	
@@ -510,11 +507,11 @@ function bp_more_load(url, bp_more_o_inner, target_el)
 		
 		$(this).find('a').html('正在载入...');
 			
-		$.get(url + '&page=' + _bp_more_pages[bp_more_o_inner.attr('id')]  + '&version=2', function (response)
+		$.get(url + '__page-' + _bp_more_pages[bp_more_o_inner.attr('id')], function (response)
 		{
-			if (response.length)
+			if ($.trim(response) != '')
 			{
-				if (_bp_more_pages[bp_more_o_inner.attr('id')] == 0)
+				if (_bp_more_pages[bp_more_o_inner.attr('id')] == start_page)
 				{
 					target_el.html(response);
 				}
@@ -529,17 +526,22 @@ function bp_more_load(url, bp_more_o_inner, target_el)
 			}
 			else
 			{
-				if (_bp_more_pages[bp_more_o_inner.attr('id')] == 0)
+				if (_bp_more_pages[bp_more_o_inner.attr('id')] == start_page)
 				{
 					target_el.html('<p style="padding: 15px 0" align="center">没有内容</p>');
 				}
 							
-				$(_this).addClass('disabled');
+				$(_this).addClass('disabled').unbind('click').bind('click', function () { return false; });
 						
 				$(_this).find('a').html('没有更多了');
 			}
 				
 			$(_this).removeClass('loading');
+			
+			if (callback_func != null)
+			{
+				callback_func();
+			}
 		});
 			
 		return false;
@@ -554,118 +556,91 @@ function content_switcher(hide_el, show_el)
 	show_el.fadeIn();
 }
 
-function _pm_form_processer(result)
-{
-	if (result.errno != 1)
-	{		
-		if (typeof(result.rsm) == 'undefined')
-		{
-			alert(result.err);
-		}
-		else
-		{
-			alert(result.err);
-		}
-	}
-	else
-	{
-		if (typeof(result.rsm) != 'undefined' && typeof(result.rsm) != 'null')
-		{	
-			if (result.rsm)
-			{
-				if (typeof(result.rsm.url) != 'undefined')
-				{
-					window.location = decodeURIComponent(result.rsm.url);
-				}
-				else if (typeof(result.rsm.element_id) != 'undefined')
-				{
-					alert(result.err);
-			
-					$('#' + result.rsm.element_id).fadeOut();
-				}
-				else if (typeof(result.rsm.click_id) != 'undefined')
-				{
-					alert(result.err);
-					
-					if (window.location.href.indexOf('/inbox/') == -1)
-					{
-						try {
-							document.getElementById(result.rsm.click_id).click();
-						}
-						catch (e)
-						{
-							window.location.reload();
-						}
-					}
-					else
-					{
-						window.location.reload();
-					}
-				}
-			}
-			else
-			{
-				alert(result.err);
-			
-				window.location.reload();
-			}
-		}
-		else
-		{
-			alert(result.err);
-			
-			window.location.reload();
-		}
-	}
-}
-
 function _tips_form_processer(result)
 {
-	if (result.errno != 1)
+	if (typeof(result.errno) == 'undefined')
+	{
+		alert(result);
+	}
+	else if (result.errno != 1)
 	{		
 		if (typeof(result.rsm) == 'undefined')
 		{
-			qAlert(result.err);
-		}
-		else if (result.rsm)
-		{
-			if (document.getElementById('tip_' + $('input[name=' + result.rsm.input + ']').attr('id')))
+			if (document.getElementById('tip_error_message'))
 			{
-			
-				$('#tip_' + $('input[name=' + result.rsm.input + ']').attr('id')).removeClass().addClass('err').html(result.err).show();
-			}
+				$('#tip_error_message').html(result.err).show();
+			}	
 			else
 			{
-				qAlert(result.err);
+				$.alert(result.err);
+			}
+		}
+		else if (result.rsm)
+		{	
+			var selecter = 'input[name=' + result.rsm.input + '], select[name=' + result.rsm.input + ']';
+			
+			if (document.getElementById('tip_' + result.rsm.tips_id))
+			{
+				$('#tip_' + result.rsm.tips_id).html(result.err).show();
+			}
+			else if (document.getElementById(result.rsm.tips_id))
+			{
+				$('#' + result.rsm.tips_id).html(result.err).show();
+			}
+			else if ($('#tip_' + $(selecter).attr('id')).attr('id'))
+			{
+				if (!$('#tip_' + $(selecter).attr('id')).hasClass('default_err') && !$('#tip_' + $(selecter).attr('id')).hasClass('all_err_tips'))
+				{
+					$('#tip_' + $(selecter).attr('id')).removeClass().addClass('err').html(result.err).show();
+				}
+				else
+				{
+					$('#tip_' + $(selecter).attr('id')).html(result.err).show();
+				}
+			}
+			else if (document.getElementById('tip_error_message'))
+			{
+				$('#tip_error_message').html(result.err).show();
+			}		
+			else
+			{
+				$.alert(result.err);
 			}
 		}
 		else
 		{
-			qAlert(result.err);
+			if (document.getElementById('tip_error_message'))
+			{
+				$('#tip_error_message').html(result.err).show();
+			}	
+			else
+			{
+				$.alert(result.err);
+			}
 		}
 	}
 	else
 	{
-		try {
+		if (result.rsm && result.rsm.url)
+		{
 			window.location = decodeURIComponent(result.rsm.url);
-		} catch(e) {
+		}
+		else if (result.err && document.getElementById('tip_success_message'))
+		{
+			$.scrollTo(0, 800, {queue:true});
+			
+			$('#tip_success_message').html(result.err).fadeIn();
+			
+			setTimeout(function () {
+				$('#tip_success_message').fadeOut();
+			}, 3000);
+		}
+		else
+		{
 			window.location.reload();
 		}
-		
 	}
 }
-
-/*function set_contribute_award(contribute_id)
-{
-	$.post('/competitions/?c=ajax&act=set_contribute_award', 'contribute_id=' + contribute_id, function (result) {
-		if (result.errno == 1)
-		{
-			$('.contributes_list_' + contribute_id).addClass('user_winner');
-		}
-		
-		qAlert(result.err);
-	}, 'json');
-}*/
 
 function hightlight(el, class_name)
 {
@@ -693,189 +668,12 @@ function hightlight(el, class_name)
 	
 	setTimeout(function () {
 		el.removeClass(class_name);
-	}, 4000);
+	}, 6000);
 }
 
-// 回车换成<BR/>
 function nl2br(str)
 {
-/*
-	alert(str);
-var breakTag = (is_xhtml || typeof is_xhtml === 'undefined') ? '' : '<br>';
-    str= (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
-	alert(str);
-	return(str);
-
-	var reg=new RegExp("\r\n","g");
-	var reg2=new RegExp("\n","g");
-    str = str.replace(reg,"<br>");
-	str = str.replace(reg2,"<br>");
-*/	
-	//str= (str + '').replace(/(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
-	var reg = new RegExp("\r\n|\n\r|\r|\n", "g");
-	str = str.replace(reg, "<br />");
-	return str;
-}
-
-// 目标 Element, 文字 Element, Ajax 处理 URL, ajax_post 处理函数, 是否 Textarea 模式
-function ajax_edit(el, text_el, ajax_url, _ajax_post_processer, is_textarea, hide_el)
-{
-	if (hide_el)
-	{
-		hide_el.hide();
-	}
-	
-	if (el.find('form[name=_ajax_edit_form]').attr('action'))
-	{		
-		return false;
-	}
-
-	var text_content = strip_tags(text_el.html().replace(/<br \/>/g, "\n"));
-	
-	if (!_ajax_post_processer)
-	{
-		_ajax_post_processer = _ajax_edit_default_post_processer;
-	}
-	
-	if (is_textarea)
-	{
-		el.html('<form action="' + ajax_url + '" method="post" class="quick_edit" name="_ajax_edit_form"><p style="width:' + el.width() + 'px"><textarea name="content" class="default_textArea" onfocus="if(this.value.replace(\/^\\s+\/,\'\').replace(\/\\s+\/g,\'\')==\'请为话题编辑头像和详细说明...\'){this.value=\'\'}"  onblur="if(this.value.replace(\/^\\s+\/,\'\').replace(\/\\s+\/g,\'\')==\'\'){this.value=\'请为话题编辑头像和详细说明...\'}">' + text_content + '</textarea></li><p align="right" style="padding-top:5px;"><a href="javascript:;" onclick="ajax_post($(this).parent().parent(),' + _ajax_post_processer + ');default_hide();" class="default_blue_but">保存</a></p></form>');
-	}
-	else
-	{
-		el.html('<form action="' + ajax_url + '" class="quick_edit" method="post" name="_ajax_edit_form"><input name="content" value="' + text_content + '" /> <a href="javascript:;" onclick="ajax_post($(this).parent(), ' + _ajax_post_processer + '); return false;" class="default_blue_but">保存</a></form>');
-	}
-}
-		
-function strip_tags(input, allowed) {
-    allowed = (((allowed || "") + "").toLowerCase().match(/<[a-z][a-z0-9]*>/g) || []).join('');
-    var tags = /<\/?([a-z][a-z0-9]*)\b[^>]*>/gi,
-        commentsAndPhpTags = /<!--[\s\S]*?-->|<\?(?:php)?[\s\S]*?\?>/gi;
-    return input.replace(commentsAndPhpTags, '').replace(tags, function ($0, $1) {return allowed.indexOf('<' + $1.toLowerCase() + '>') > -1 ? $0 : '';
-    });
-} 
-
-
-function _ajax_edit_default_post_processer(result)
-{
-	if (result.errno != 1)
-	{		
-		qAlert(result.err);
-	}
-	else
-	{
-		try {
-			document.getElementById(result.rsm.target_id).innerHTML = result.err;
-		} catch(e) {
-			try {
-				window.location = decodeURIComponent(result.rsm.url);
-			} catch(e) {
-				window.location.reload();
-			}
-		}
-		
-		try {
-			$(document.getElementById(result.rsm.display_id)).show();
-		} catch(e) {
-			
-		}
-	}
-}
-
-var doc = document,_$$$ = function(o){return 'string' == typeof o ? doc.getElementById(o) : o ;};
-function DialogBox_show( boxWidth,html,titleTxt,butTxt,fn ){
-	
-	this[0] = document;
-	this.elementsMaskBox = elementsMaskBox;
-	this.elScroll = this[0].documentElement.scrollHeight;
-	this.bd = this[0].getElementsByTagName("body")[0];
-
-	this.eWidth = 450; //默认弹出框宽度
-	this.info( boxWidth,html,titleTxt,butTxt );
-	
-	if(fn!=null){fn();}
-};
-
-var elementsMaskBox = document.createElement("div"),boxPup = document.createElement("div");
-
-DialogBox_show.prototype.add_mask = function(){
-	
-	this.setAttr(this.elementsMaskBox,{className:'w_mask',id:'w_mask'});
-	this.bd.appendChild(this.elementsMaskBox);
-	this.setAttr(this.elementsMaskBox.style,{height:this.elScroll+'px'});
-	
-};
-
-DialogBox_show.prototype.elementsTag = function( boxWidth,HTML,s,txt ){
-	
-	var boxW = boxWidth == null ?  this.eWidth : boxWidth;
-
-	this.setAttr(boxPup,{className:'w_tagPupD',id:'w_tagPupD'});
-	
-	this.a = this[0].createElement("a");
-	this.a.href = 'javascript:void(0)';
-	this.a.className = 'w_sub';
-	this.a.onclick = function(){
-		
-		hidePupBox('w_tagPupD','w_mask');
-	};
-	this.a.innerHTML = txt;
-	
-	this.setAttr(boxPup.style,{width:boxW+'px'});
-	
-	var INNERHTML = '<div class="b"><h3 class="w_title">'+s+'</h3>'+
-					'<div class="w_Contxt">'+HTML+'</div>'+
-					'<div class="w_submte" id="w_submit"></div></div>';
-					
-	
-	boxPup.innerHTML = INNERHTML;
-	
-	
-	this.bd.appendChild(boxPup);
-	
-	var submitP = this[0].getElementById('w_submit');
-		if(txt!=null && txt !=''){
-			submitP.appendChild(this.a);
-		}else{
-			submitP.className = 'w_submte hide';
-		}
-	
-	var scllW = boxPup.scrollWidth/2,scllH = boxPup.scrollHeight/2;
-	this.setAttr(boxPup.style,{marginLeft:-scllW+'px',marginTop:-scllH+'px'});
-	
-}
-
-
-DialogBox_show.prototype.info = function( boxWidth,h,s,txt ){
-	
-	this.elementsTag( boxWidth,h,s,txt );
-	this.add_mask();
-	
-}
-
-DialogBox_show.prototype.setAttr = function( o,Class ){
-	
-	for(var k in Class){
-		
-		o[k] = Class[k];
-		
-	}
-};
-
-function hidePupBox( o,k ){
-	
-	var PupBox = document.getElementById( o ),ar=[];
-	var elementsMaskBox = document.getElementById(k);
-	var bd = document.getElementsByTagName("body")[0];
-	ar.push(PupBox,elementsMaskBox);
-
-	for(var i in ar){
-		
-		
-		bd.removeChild(ar[i]);
-		
-	}
-	
+	return str.replace(new RegExp("\r\n|\n\r|\r|\n", "g"), "<br />");
 }
 
 function init_img_uploader(upload_url, upload_name, upload_element, upload_status_elememt, perview_element)
@@ -886,11 +684,9 @@ function init_img_uploader(upload_url, upload_name, upload_element, upload_statu
         responseType: 'json',
         
         onSubmit: function (file, ext) {
-            var re = new RegExp('(png|jpg|jpeg|gif|bmp)$', 'i');
-
-            if (!re.test(ext))
+            if (!new RegExp('(png|jpe|jpg|jpeg|gif)$', 'i').test(ext))
             {
-                qAlert("请选择正确的图片文件");
+                alert('上传失败: 只支持 jpg、gif、png 格式的图片文件');
                 
                 return false;
             }
@@ -911,13 +707,20 @@ function init_img_uploader(upload_url, upload_name, upload_element, upload_statu
             	upload_status_elememt.hide();
             }
             
-            if (response.errno == "-1")
+            if (response.errno == -1)
 			{
-            	qAlert(response.err);
+            	alert(response.err);
         	}
         	else
         	{
-            	perview_element.attr("src", response.rsm.preview + "?" + Math.random());
+        		if (typeof(perview_element.attr('src')) != 'undefined')
+        		{
+	        		perview_element.attr('src', response.rsm.preview + '?' + Math.floor(Math.random() * 10000));
+        		}
+        		else
+        		{
+	        		perview_element.css('background-image', 'url(' + response.rsm.preview + '?' + Math.floor(Math.random() * 10000) + ')');
+        		}
             }		
         }
     });
@@ -925,7 +728,7 @@ function init_img_uploader(upload_url, upload_name, upload_element, upload_statu
 
 function init_avatar_uploader(upload_element, upload_status_elememt, avatar_element)
 {
-	return init_img_uploader(G_BASE_URL + '/account/?c=setting&act=myface_ajax_upload_action', 'user_avatar', upload_element, upload_status_elememt, avatar_element);
+	return init_img_uploader(G_BASE_URL + '/account/ajax/avatar_upload/', 'user_avatar', upload_element, upload_status_elememt, avatar_element);
 }
 
 function init_fileuploader(element_id, action_url)
@@ -942,9 +745,9 @@ function init_fileuploader(element_id, action_url)
 	});
 }
 
-function share_content(share_type, target_id, focus_tab, weibo_enabled)
+function share_content(share_type, target_id, focus_tab)
 {
-	if(typeof focus_tab == 'undefined')
+	if (typeof focus_tab == 'undefined')
 	{
 		focus_tab = "weibo";
 	}
@@ -953,132 +756,77 @@ function share_content(share_type, target_id, focus_tab, weibo_enabled)
 	{
 		//请求分享内容
 		case 'question' : 
-			url = G_BASE_URL+"/question/?c=ajax&act=question_share_txt&question_id=" + target_id;
+			url = G_BASE_URL + "/question/ajax/question_share_txt/question_id-" + target_id;
 			share_title = "分享问题";
 			break;
 		case 'answer' : 
-			url = G_BASE_URL+"/question/?c=ajax&act=answer_share_txt&answer_id=" + target_id;
+			url = G_BASE_URL + "/question/ajax/answer_share_txt/answer_id-" + target_id;
 			share_title = "分享回复";
 			break;
+		case 'topic' : 
+			url = G_BASE_URL + "/question/ajax/topic_share_txt/topic_id-" + target_id;
+			share_title = "分享话题";
+			break;
+		default: 
+			return false;
 	}
+
+	var title = '<a href="javascript:;" onclick="hidePupBox(\'w_tagPupD\',\'w_mask\');" class="close_ti" title="点击关闭对话框 "><em>close</em></a>' + share_title;
 	
-	if(typeof url == 'undefined')
+	new DialogBox_show('500', '<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/common/loading_b.gif" alt="" /></p>', title, '', function()
 	{
-		return false;
-	}
-	
-	show_share_box(share_title, weibo_enabled);
-	
-	$("#menu_s").find("li[rel=" + focus_tab + "]").click();
-	
-	$.getJSON(url, function(result)
-	{
-		if(result.errno == '1')
-		{
-			var share_txt = result.rsm.share_txt;
-			
-			$(".txt_area[rel=weibo]").html(share_txt.weibo);
-			$(".txt_area[rel=mail]").html(share_txt.mail);
-			$(".txt_area[rel=message]").html(share_txt.message);
-		}
+		$('#w_tagPupD').css('marginTop', '-140px');
 	});
+	
+	$.get(url, function(result)
+	{
+		if (result.errno == '1')
+		{
+			$('.w_Contxt').html(show_share_box());
+
+			$('#weibo_share').html('<div id="bdshare" class="bdshare_t bds_tools get-codes-bdshare" data="{text:\'' + result.rsm.share_txt.sns_share +  '\',url:\'' + result.rsm.share_txt.url + '\', snsKey: {\'tsina\': \'726571307\',\'tqq\': \'801158211\'}, review:\'off\', render:false}"><a class="bds_qzone">QQ空间</a><a class="bds_tsina">新浪微博</a><a class="bds_tqq">腾讯微博</a><a class="bds_hi">百度空间</a><a class="bds_t163">网易微博</a><a class="bds_tqf">朋友网</a><a class="bds_kaixin001">开心网</a><a class="bds_renren">人人网</a><a class="bds_douban">豆瓣网</a><a class="bds_taobao">淘宝</a><a class="bds_fbook">Facebook</a><a class="bds_twi">Twitter</a><a class="bds_ms">Myspace</a><a class="bds_deli">Delicious</a><a class="bds_linkedin">linkedin</a></div><script type="text/javascript" src="http://bdimg.share.baidu.com/static/js/bds_s_v2.js?cdnversion=' + new Date().getHours() + '"></script>');
+			
+			$("[name=model_type]").val(share_type);
+			$("[name=target_id]").val(target_id);
+			
+			$(".txt_area[rel=mail]").html(result.rsm.share_txt.mail);
+			$(".txt_area[rel=message]").html(result.rsm.share_txt.message);
+			
+			$("#menu_s").find("li[rel=" + focus_tab + "]").click();
+		}
+	}, 'json');
+
 }
-	
-	
-function show_share_box(share_title, weibo_enabled)
+
+function show_share_box()
 {
-	var title = '<a href="javascript:;" onclick="hidePupBox(\'w_tagPupD\',\'w_mask\');" class="close_ti" title="点击关闭对话框 ">close</a>' + share_title;
+	var html = '<ul id="menu_s">' +
+			'<li class="cur" onclick="elementClickEvent.tabs(this); $(\'#tip_share_send\').hide();" rel="weibo" uid="0">站外分享</li>'+
+			'<li onclick="elementClickEvent.tabs(this); $(\'#tip_share_send\').hide();" rel="mail" uid="1">邮件分享</li>';
 	
-	var html = '<ul id="menu_s">';
-	
-	if (weibo_enabled == 'Y')
+	if (G_USER_ID)
 	{
-		html += '<li class="cur" onclick="elementClickEvent.tabs(this);" rel="weibo" uid="0">微博分享</li>'+
-				'<li onclick="elementClickEvent.tabs(this);" rel="mail" uid="1">邮件分享</li>'+
-				'<li onclick="elementClickEvent.tabs(this);" rel="letter" uid="2">站内信分享</li>'+
-				'</ul>';
-	}else{
-		html += '<li onclick="elementClickEvent.tabs(this);" rel="mail" uid="0">邮件分享</li>'+
-				'<li onclick="elementClickEvent.tabs(this);" rel="letter" uid="1">站内信分享</li>'+
-				'</ul>';
-	}		//微博分享
+		html +=	'<li onclick="elementClickEvent.tabs(this); $(\'#tip_share_send\').hide();" rel="letter" uid="2">私信分享</li>';
+	}
 	
-	if (weibo_enabled == 'Y')
+	html += '</ul><div class="default_error_share hide" id="tip_share_send"></div>';
+	
+	html += '<div id="weibo_share" class="class_share hide"></div>';
+
+	html += '<div class="class_share hide" id="mail_share"><form id="mail_share_form" onSubmit="return false;" method="post" action="'+G_BASE_URL + '/question/ajax/send_share_email/"><input type="hidden" name="model_type" value=""/><input type="hidden" name="target_id" value=""/><ul class="txt_list">'+
+			'<li><label for="inputsType_txt">收件人：</label><input type="text" name="email_address" class="txt_input"/></li>'+
+			'<li><label for="inputsType_area">内容：</label><textarea rel="mail" class="txt_area" name="email_message"></textarea></li>'+
+			'</ul><p class="tr"><a href="javascript:;" onclick="ajax_post($(\'#mail_share_form\'), _pm_form_processer); $(\'#tip_share_send\').hide();" class="set_msg">发送</a><a href="javascript:;" onclick="hidePupBox(\'w_tagPupD\',\'w_mask\');">取消</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p></form></div>';
+
+	if (G_USER_ID)
 	{
-		html += '<div id="weibo_share" class="class_share"></div>';
+		html += '<div class="class_share hide" id="letter_share"><form id="message_share_form" onSubmit="return false;" method="post" action="'+G_BASE_URL + '/inbox/ajax/send/click_id-share_box_close__tips_id-share_send"><ul class="txt_list">'+
+			'<li><label for="userShare_txt">发给：</label><input type="text" name="recipient" class="txt_input" id="userShare_txt"/><div class="ajax_date hide"></div></li>'+
+			'<li><label for="inputsType_area">内容：</label><textarea name="message" rel="message" class="txt_area"></textarea></li></ul>'+
+			'<p class="tr"><a href="javascript:;" onclick="ajax_post($(\'#message_share_form\'), _pm_form_processer); $(\'#tip_share_send\').hide(); return false;" class="set_msg">发送</a><a href="javascript:;" id="share_box_close" onclick="hidePupBox(\'w_tagPupD\',\'w_mask\');">取消</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p></form></div>';
 	}
 
-					//邮件分享
-		html += '<div class="class_share hide" id="mail_share"><form id="mail_share_form" method="post" action=""><ul class="txt_list">'+
-					'<li><label for="inputsType_txt">收件人：</label><input type="text" name="email_address" class="txt_input"/></li>'+
-					'<li><label for="inputsType_area">内容：</label><textarea rel="mail" class="txt_area" name="email_message"></textarea></li>'+
-				'</ul><p class="tr"><a href="javascript:;" onclick="send_invite_question_mail($(\'#mail_share_form\').formToArray());" class="set_msg">发送</a><a href="javascript:;" onclick="hidePupBox(\'w_tagPupD\',\'w_mask\');">取消</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p></form></div>'+
-				
-					//站内分享
-				'<div class="class_share hide" id="letter_share"><form id="message_share_form" method="post" action="'+G_BASE_URL + '/inbox/?c=main&act=write_message&click_id=share_box_close"><ul class="txt_list">'+
-					'<li><label for="userShare_txt">发给：</label><input type="text" name="recipient" class="txt_input" id="userShare_txt"/><div class="ajax_date hide"></div></li>'+
-					'<li><label for="inputsType_area">内容：</label><textarea name="message" rel="message" class="txt_area"></textarea></li>'+
-				'</ul><p class="tr"><a href="javascript:;" onclick="ajax_post($(\'#message_share_form\'), _pm_form_processer); return false;" class="set_msg">发送</a><a href="javascript:;" id="share_box_close" onclick="hidePupBox(\'w_tagPupD\',\'w_mask\');">取消</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p></form></div>';
-
-	
-	new DialogBox_show('500', html, title, '', function()
-	{
-		$('#w_tagPupD').css('marginTop', '-130px');
-	});
-	
-	//判断微博绑定
-	$.getJSON(G_BASE_URL + '/account/?c=ajax&act=weibo_bind', function(result)
-	{
-		if (result.errno == 1)
-		{
-			var qq_weibo = result.rsm.qq_weibo.name;
-			var sina_weibo = result.rsm.sina_weibo.name;
-
-			if(result.rsm.qq_weibo.enabled != 'Y' && result.rsm.sina_weibo.enabled != 'Y')
-			{
-				return;
-			}
-			
-			var weibo_html = '';
-			
-			if (qq_weibo == null && result.rsm.qq_weibo.enabled == 'Y')
-			{
-				weibo_html += '<p class="sc-wb"><a title="腾讯微博" target=_blank href="'+G_BASE_URL + '/account/?c=qq&amp;act=binding"><img src="' + G_STATIC_URL + '/css/img/share_tx_wb.gif">绑定腾讯微博帐号</a></p>';
-			}
-			
-			if (sina_weibo == null && result.rsm.sina_weibo.enabled == 'Y')
-			{
-				weibo_html += '<p class="sc-wb"><a title="新浪微博" target=_blank href="'+G_BASE_URL + '/account/?c=sina&amp;act=binding"><img src="' + G_STATIC_URL + '/css/img/icoSina.gif">绑定新浪微博帐号</a></p>';
-			}
-			
-			if (qq_weibo == null && sina_weibo == null)
-			{
-				weibo_html += '<p class="p">绑定微博之后，可以方便把精彩问答分享到该微博，并可以邀请你的微博好友来回答该问题或者加入 ' + G_SITE_NAME + '</p>';
-			}
-
-			if (qq_weibo != null || sina_weibo != null)
-			{
-				weibo_account = '';
-				wb_select = '';
-				
-				if (sina_weibo != null)
-				{
-					weibo_account += '新浪微博帐号：<a href="javascript:;">' + sina_weibo + '</a>';
-					wb_select += '<input type="checkbox" value="3" checked="checked" name="push_sina"> 新浪微博</label>';
-				}
-				
-				if (qq_weibo != null)
-				{
-					weibo_account += '，腾讯微博帐号：<a href="javascript:;">' + qq_weibo + '</a>';
-					wb_select += '&nbsp;&nbsp;<input type="checkbox" value="3" checked="checked" name="push_qq"> 腾讯微博</label>';
-				}
-				
-				weibo_html += '<p class="sc-wb">已经绑定' + weibo_account + '</p><form id="share_weibo_from" method="post" action=""><textarea rel="weibo" name="push_message" class="txt_area" style="width:430px;"></textarea>' + wb_select + '<p class="tr"><a href="javascript:;" onclick="push_weibo($(\'#share_weibo_from\').formToArray());" class="set_msg">发布</a><a href="javascript:;" onclick="hidePupBox(\'w_tagPupD\',\'w_mask\');">取消</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p></form>';
-			}
-			
-			$('#weibo_share').html(weibo_html);
-		}
-	});
+	return html;
 }
 
 function htmlspecialchars(text)  
@@ -1088,118 +836,30 @@ function htmlspecialchars(text)
 
 function delete_draft(item_id, type)
 {
-	$.post(G_BASE_URL + '/account/?c=ajax&act=delete_draft', 'item_id=' + item_id + '&type=' + type, function (result) {
+	$.post(G_BASE_URL + '/account/ajax/delete_draft/', 'item_id=' + item_id + '&type=' + type, function (result) {
 		if (result.errno != 1)
 		{
-			qAlert(result.err);
+			$.alert(result.err);
 		}
 	}, 'json');
 }
 
-function agree_show(el)
+function agree_vote(answer_id, value)
 {
-	el.hide();
-	el.parent().find(".defa_agree").show();
-	el.parent().find(".defa_oppose").show();
-	if(Number(el.html()) >= 1) el.parent().find("[name=agree_user_list]").show();
-}
-
-
-function change_agree(el, st)
-{
-	if(el.attr('ajax_doing') == '1')
-	{
-		return;
-	}
-	
-	el.attr('ajax_doing', '1');
-	
-	var alc = el.parent().find('a').first();
-	var agree_num = el.parent().find('[name=agree_num]');
-	var status = String(alc.attr('status'));
-	var answer_id = alc.attr('name');
-	var new_ag_users = new Array();
-
-	el.parent().find('.defa_agree').removeClass("up_cur").attr("title", "投一票");
-	el.parent().find('.defa_oppose').removeClass("down_cur").attr("title", "反对，不会显示你的姓名");
-	
-	if(status == st)
-	{
-		alc.attr('status', 0);
-		if(st == '1')
+	$.post(G_BASE_URL + '/question/ajax/answer_vote/', "answer_id=" + answer_id + "&value=" + value, function (result) {
+		if (result.errno == -1)
 		{
-			agree_num.html(Number(agree_num.html()) - 1);
-			el.parent().find('a[rel=' + USER_ID + ']').remove();
+			$.alert(result.err);
 		}
-	}
-	else
-	{
-		alc.attr('status', st);
-
-		if(st == '1')
-		{
-			agree_num.html(Number(agree_num.html()) + 1);
-			el.parent().find('a[rel=' + USER_ID + ']').remove();
-			var cur_user = new Array();
-			cur_user[0] = USER_ID;
-			cur_user[1] = USER_NAME;
-			new_ag_users.push(cur_user);
-			el.addClass("up_cur").parent().find('.defa_agree').attr("title", "取消投票");
-		}
-		else if(st == '-1')
-		{
-			if(status == '1')
-			{
-				agree_num.html(Number(agree_num.html()) - 1);
-				el.parent().find('a[rel=' + USER_ID + ']').remove();
-			}
-			el.addClass("down_cur").parent().find('.defa_oppose').attr("title", "取消反对");
-		}
-	}
-
-	el.parent().find('[name=agee_people]').each(function (){
-		var user = new Array();
-		user[0] = $(this).attr('rel');
-		user[1] = $(this).html();
-		new_ag_users.push(user);
-	});
-	
-	var count = 0;
-	var new_aus_str = "";
-	$(new_ag_users).each(function (i){
-		new_aus_str += '<a href="'+G_BASE_URL + '/people/?u=' + new_ag_users[i][0] + '" rel="' + new_ag_users[i][0] + '" onmouseover="eventsMouseM(this);" name="agee_people" class="a">' + new_ag_users[i][1] + '</a>';
-		if(new_ag_users.length > ++count) new_aus_str += "、";
-	});
-	
-	el.parent().find(".agee_people").html(new_aus_str);
-	
-	if(new_ag_users.length == 0)
-	{
-		el.parent().find("[name=agree_user_list]").hide();
-	}
-	else
-	{
-		el.parent().find("[name=agree_user_list]").show();
-	}
-	
-	$.post(G_BASE_URL + '/question/?c=ajax&act=change_vote', "answer_id=" + answer_id + "&value=" + st, function (result) {
-		if (result.errno == '1')
-		{
-			el.removeAttr('ajax_doing');
-		}
-	
 	}, 'json');
-
-	return true;
 }
-
 
 //问题-不感兴趣
 function question_uninterested(el, question_id)
 {
 	el.fadeOut();
 	
-	$.post(G_BASE_URL + '/question/?c=ajax&act=uninterested', 'question_id=' + question_id, function (result) {
+	$.post(G_BASE_URL + '/question/ajax/uninterested/', 'question_id=' + question_id, function (result) {
 		if (result.errno != '1')
 		{
 			alert(result.err);
@@ -1207,99 +867,188 @@ function question_uninterested(el, question_id)
 	}, 'json');
 }
 
-function cancel_question_invite(el, question_id, recipients_uid)
-{
-	$.post(G_BASE_URL + '/question/?c=ajax&act=cancel_question_invite', 'question_id=' + question_id + '&recipients_uid=' + recipients_uid, function (result) {
-		if (result.errno == '1')
-		{
-			el.parent().remove();
-		}
-		else
-		{
-			alert("错误:" + result.rsm.err);
-		}
-
-	}, 'json');
-}
-
 function question_invite_delete(el, question_invite_id)
 {
-	$.post(G_BASE_URL + '/question/?c=ajax&act=question_invite_delete', 'question_invite_id=' + question_invite_id, function (result) {
+	$.post(G_BASE_URL + '/question/ajax/question_invite_delete/', 'question_invite_id=' + question_invite_id, function (result) {
 		if (result.errno == '1')
 		{
 			el.parent().parent().remove();
 		}
 		else
 		{
-			alert("错误:" + result.rsm.err);
+			alert(result.rsm.err);
 		}
-
 	}, 'json');
 }
 
-function notification_show(max)
-{
-	var n_count = 0;
-	$("#notification_list").find("li").each(function()
+function toggle_comments(item_id, type_name,e,callback)
+{	
+	if ($('#' + type_name + '_comments_' + item_id).css('display') == 'none')
 	{
-		if(n_count < 5)
+		if ($('#' + type_name + '_comments_' + item_id + ' div[name=comments_list]').html() == '')
 		{
-			$(this).show();
-		}
-		else
-		{
-			$(this).hide();
-		}
-		n_count ++;
-	});
-	
-	if($("#notification_list").find("li").size() == 0)
-	{
-		if ($('#notitile_all'))
-		{
-			$('#notitile_all').fadeOut();
-		}
-	}
-}
-
-function toggle_answer_comments(answer_id)
-{
-	if ($('#answer_comments_' + answer_id).css('display') == 'none')
-	{
-		if ($('#answer_comments_list_' + answer_id).html() == '')
-		{
-			reload_answer_comments_list(answer_id, 'answer_comments_list_' + answer_id);
+			reload_comments_list(item_id, item_id, type_name);
 		}
 		
-		$('#answer_comments_' + answer_id).fadeIn();
+		$('#' + type_name + '_comments_' + item_id).fadeIn('normal'); 
+		
 	}
 	else
 	{
-		$('#answer_comments_' + answer_id).fadeOut();
+		$('#' + type_name + '_comments_' + item_id).hide();
 	}
+	callback != null ? callback.call(this,item_id,type_name,e) :''
 }
 
-function reload_answer_comments_list(answer_id, element_id)
+function reload_comments_list(item_id, element_id, type_name)
 {
 	var _element_id = element_id;
 	
-	$('#' + _element_id).html('<p style="padding: 10px 0" align="center"><img src="' + G_STATIC_URL + '/css/img/load.gif" alt="" /></p>');
+	$('#' + type_name + '_comments_' + _element_id + ' div[name=comments_list]').html('<p style="padding: 10px 0" align="center"><img src="' + G_STATIC_URL + '/common/load.gif" alt="" /></p>');
 	
-	$.get(G_BASE_URL + '/question/?c=ajax&act=get_answer_comments&answer_id=' + answer_id, function (data) {
-		$('#' + _element_id).html(data);
+	$.get(G_BASE_URL + '/question/ajax/get_' + type_name + '_comments/' + type_name + '_id-' + item_id, function (data) {
+		$('#' + type_name + '_comments_' + _element_id + ' div[name=comments_list]').html(data);
 	});
 }
 
-function _answer_comments_form_processer(result)
+function header_message(message)
 {
+	$('<div/>').addClass('reply_div').html('<p><!--<span title="点击取消显示" class="s"></span>-->' + message + '</p>').insertBefore($('#default_msg').find('p.transparent'));
+}
+
+function save_comment(save_button_el)
+{
+	$(save_button_el).attr('_onclick', $(save_button_el).attr('onclick')).addClass('disabled').removeAttr('onclick').addClass('save_comment');
+	
+	ajax_post($(save_button_el).parents('form'), _comments_form_processer);
+}
+
+function _comments_form_processer(result)
+{
+	$.each($('a.save_comment.disabled'), function (i, e) {
+		$(this).attr('onclick', $(this).attr('_onclick')).removeAttr('_onclick').removeClass('disabled').removeClass('save_comment');
+	});
+	
 	if (result.errno != 1)
-	{		
-		qAlert(result.err);
+	{
+		$.alert(result.err);
 	}
 	else
 	{
-		$('#answer_comments_form_' + result.rsm.answer_id).fadeOut();
-		
-		reload_answer_comments_list(result.rsm.answer_id, 'answer_comments_list_' + result.rsm.answer_id);
+		reload_comments_list(result.rsm.item_id, result.rsm.item_id, result.rsm.type_name);
+
+		$('#' + result.rsm.type_name + '_comments_' + result.rsm.item_id + ' form input').val("");
+
+		$('#' + result.rsm.type_name + '_comments_' + result.rsm.item_id + ' form').fadeOut();
 	}
+}
+
+function remove_comment(el, type, comment_id)
+{
+	$(el).parents('li').fadeOut('slow',function(){
+		$(this).remove();
+		$.get(G_BASE_URL + '/question/ajax/remove_comment/type-' + type + '__comment_id-' + comment_id);
+	});
+}
+
+function insert_attach(el, attach_id, attach_tag)
+{
+	$(el).parents('form').find('textarea').val($(el).parents('form').find('textarea').val() + "\n[" + attach_tag + "]" + attach_id + "[/" + attach_tag + "]\n");
+}
+
+function question_thanks(question_id, element)
+{
+	$.post(G_BASE_URL + '/question/ajax/question_thanks/', 'question_id=' + question_id, function (result) {
+		if (result.errno != 1)
+		{
+			$.alert(result.err);
+		}
+		else if (result.rsm.action == 'add')
+		{
+			$(element).html('已感谢');
+			$(element).removeAttr('onclick');
+		}
+		else
+		{
+			$(element).html('感谢');
+		}
+	}, 'json');
+}
+
+function answer_user_rate(answer_id, type, element)
+{
+	$.post(G_BASE_URL + '/question/ajax/question_answer_rate/', 'type=' + type + '&answer_id=' + answer_id, function (result) {
+		
+		if (result.errno != 1)
+		{
+			$.alert(result.err);
+		}
+		else if (result.errno == 1)
+		{
+			switch (type)
+			{
+				case 'thanks':
+					if (result.rsm.action == 'add')
+					{
+						$(element).html('已感谢');
+						$(element).removeAttr('onclick');
+					}
+					else
+					{
+						$(element).html('感谢');
+					}
+				break;
+				
+				case 'uninterested':
+					if (result.rsm.action == 'add')
+					{
+						$(element).html('撤消没有帮助');
+					}
+					else
+					{
+						$(element).html('没有帮助');
+					}
+				break;
+			}
+		}
+	}, 'json');
+}
+
+function report_content(type, target_id)
+{
+	var url = G_BASE_URL + '/question/ajax/report_reason/';
+	var title = '<a href="javascript:;" onclick="hidePupBox(\'w_tagPupD\',\'w_mask\');" class="close_ti" title="点击关闭对话框 "><em>close</em></a>举报';
+	
+	new DialogBox_show('500', '<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/common/loading_b.gif" alt="" /></p>', title, '', function()
+	{
+		$('#w_tagPupD').css('marginTop', '-140px');
+	});
+
+	$.get(url, function(result)
+	{
+		if (result.errno == '1')
+		{
+			var contxt = '<div class="default_error_share hide" style="margin-bottom:10px;margin-top:0px;" id="tip_share_send">asdfsf</div><div class="class_share" style="padding:0;"><form action="' + G_BASE_URL + '/question/ajax/save_report/" method="post" onsubmit="return false;" id="message_share_form"><input type="hidden" name="type" value="' + type + '"/><input type="hidden" name="target_id" value="' + target_id + '"/><ul class="txt_list"><li style="position: relative; z-index: 10; width: 360px;"><label for="userShare_txt">可选理由：</label><select type="text" id="reason_select" class="txt_input" name="reason_select" onChange="$(this).parent().next().find(\'[name=reason]\').val($(this).val())" style="width:100px;"><option value="" onClick="">请选择</option>';
+
+			$(result.rsm).each(function (i, d)
+			{
+				contxt += '<option value="' + d + '" onClick="">' + d + '</option>';
+			});
+
+			contxt += '</select><div class="ajax_date hide"></div></li><li><label for="inputsType_area">举报理由：</label><textarea class="txt_area" name="reason" id="reason" style="height:80px;"></textarea></li></ul><p class="tr"><a class="set_msg" onclick="ajax_post($(\'#message_share_form\'), _ajax_post_processer); $(\'#tip_share_send\').hide(); return false;" href="javascript:;">确定</a><a onclick="hidePupBox(\'w_tagPupD\',\'w_mask\');" id="share_box_close" href="javascript:;">取消</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p></form></div>';
+			
+			$('.w_Contxt').html(contxt);
+		}
+	}, 'json');
+}
+
+function htmldecode(str) {
+	str = str.replace(/&amp;/gi, '&');
+	str = str.replace(/&nbsp;/gi, ' ');
+	str = str.replace(/&quot;/gi, '"');
+	str = str.replace(/&#39;/g, "'");
+	str = str.replace(/&lt;/gi, '<');
+	str = str.replace(/&gt;/gi, '>');
+	str = str.replace(/<br[^>]*>(?:(rn)|r|n)?/gi, 'n');
+	return str;
 }

@@ -1,28 +1,28 @@
-<?php TPL::output('global/__public_header_v2.tpl.htm'); ?>
+<?php TPL::output('global/header_landing.tpl.htm'); ?>
 
-<section class="regSection">
-<h3 class="regtitle"><b class="b">帐户激活</b></h3>
-  <form action="<?php echo get_setting('base_url');?>/account/?c=active&act=valid_email_active_process" method="post" id="active_form">
-  <input type="hidden" name="active_code" value="<?php echo $this->active_code; ?>"/>
-  <ul class="regmoster" id="reg_moster">
-	<li style="display:none;"><input type="text" name="user_name" value="" id="userName" class="userTxt" disabled="true"/><span id="tip_userName"></span></li>
-	<li>
-	<?php if ($this->email != ""){ ?><input type="hidden" name="email_ref" id="userEmail_ref" value="<?php echo $this->email;?>" /><?php } ?>
-	<input type="text" name="email" id="userEmail" value="<?php echo $this->email;?>" class="userTxt" title="电子邮箱"<?php if($this->email != ""){ ?> disabled<?php } ?>/><span id="tip_userEamil"></span></li>
-	<li><input type="password" name="password" id="userPassword" class="userTxt hide" title="密码"/>
-	<input type="text" id="userPasswordx" class="userTxt" title="密码"/><span id="tip_userPassword"></span></li>
-	
-	<li><input type="text" name="seccode_verify" id="userCode" class="userTxt yzm" title="验证码"/>
-	<span class="elp"><em class="s"><img src="" onclick="this.src='<?php echo get_setting('base_url');?>/account/?c=captcha&' + Math.random();" id="seccode" /></em><a href="javascript:void(0);" onclick="$('#seccode').click();">换一张</a></span>
-	<span id="tip_userCode" style="display:none;"></span>
-	</li>
+<script type="text/javascript">
+	$(document).ready(function () {
+		$('#header_action').append('邮箱验证');
+	});
+</script>
+
+<form action="account/ajax/valid_email_active/" method="post" id="active_form">
+<input type="hidden" name="active_code" value="<?php echo $this->active_code; ?>"/>
+<div class="Ef_login login_bg_02">
+  <ul class="loging register" id="psw_retrieve">
+  	<li>
+      <?php if ($_GET['email']) { ?><input type="hidden" id="userEmail"/><?php } ?>
+      <input type="text" class="login_txt" id="login_account" title="账号（邮箱）" name="email" value="<?php echo $this->email;?>"<?php if ($this->email) { ?> disabled="disabled"<?php } ?> />
+      <span class="hide"></span> </li>
+    <li id="global_err" class="i_hide">
+      <p class="i_global_err i_small i_err_bg"><em class="e"></em><span id="glo_Err">账号或密码错误，请重试</span></p>
+    </li>
+    
+    <li><a href="javascript:;" onclick="ajax_post($('#active_form'), _login_form_processer);" class="login_sub i_cl_06 i_fb_14 i_right">继续</a></li>
   </ul>
-  </form>
-</section>
-<section class="userLister" id="regLister">
-	<a href="#" onclick="ajax_post($('#active_form'), _ajax_post_tip_processer); return false;" class="regbut">激活</a>
-</section>
+</div>
+</form>
 
-<script src="<?php echo G_STATIC_URL; ?>/js/reg.js" type="text/javascript"></script>
+<script type="text/javascript" src="<?php echo G_STATIC_URL; ?>/js/app/login.js"></script>
 
-<?php TPL::output('global/__footer_v2.tpl.htm'); ?>
+<?php TPL::output('global/footer_blank.tpl.htm'); ?>

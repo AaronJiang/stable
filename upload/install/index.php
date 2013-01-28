@@ -3,7 +3,7 @@
 +--------------------------------------------------------------------------
 |   Anwsion [#RELEASE_VERSION#]
 |   ========================================
-|   by Tatfook Network Team
+|   by Anwsion dev team
 |   (c) 2011 - 2012 Anwsion Software
 |   http://www.anwsion.com
 |   ========================================
@@ -12,37 +12,39 @@
 +---------------------------------------------------------------------------
 */
 
-define('ROOT_PATH', realpath('../'));
-
-require_once (ROOT_PATH . '/gzphp/init.php');
+require_once('../system/init.php');
 
 HTTP::no_cache_header();
 
-if (file_exists(GZ_PATH . 'config/install.lock.php'))
+if (file_exists(AWS_PATH . 'config/install.lock.php'))
 {
-	header('Location: ../');
-	die;
+	H::redirect_msg('您的程序已经安装, 要重新安装请删除 system/config/install.lock.php');
 }
 
-set_time_limit(0);
+@set_time_limit(0);
 
-TPL::assign('page_title', 'Anwsion - 安装程序');
+TPL::assign('page_title', 'Anwsion - 安装');
+TPL::assign('static_url', '../static');
 
 switch ($_POST['step'])
 {
 	default :
 		$system_require = array();
 		
-		if (version_compare(PHP_VERSION, '5.2.10', '>='))
+		if (version_compare(PHP_VERSION, ENVIRONMENT_PHP_VERSION, '>='))
 		{
 			$system_require['php'] = TRUE;
 		}
 		
 		if (class_exists('PDO', false))
 		{
-			$system_require['db'] = 'PDO_MYSQL';
+			if (defined('PDO::MYSQL_ATTR_USE_BUFFERED_QUERY'))
+			{
+				$system_require['db'] = 'PDO_MYSQL';
+			}
 		}
-		else if (function_exists('mysqli_close'))
+		
+		if (!$system_require['db'] AND function_exists('mysqli_close'))
 		{
 			$system_require['db'] = 'MySQLi';
 		}
@@ -54,12 +56,11 @@ switch ($_POST['step'])
 		
 		if (function_exists('mb_strlen'))
 		{
-			$system_require['mb_strlen'] = TRUE;
+			$system_require['convert_encoding'] = TRUE;
 		}
-		
-		if (function_exists('iconv'))
+		else if (function_exists('iconv'))
 		{
-			$system_require['iconv'] = TRUE;
+			$system_require['convert_encoding'] = TRUE;
 		}
 		
 		if (isset($_COOKIE))
@@ -77,25 +78,36 @@ switch ($_POST['step'])
 			$system_require['image_lib'] = 'ImageMagick';
 		}
 		
-		if (function_exists('curl_init'))
-		{
-			$system_require['curl'] = TRUE;
-		}
-		
-		// 检测 /gzphp 是否有写权限
-		if (is_really_writable(GZ_PATH))
+		// 检测 AWS_PATH 是否有写权限
+		if (is_really_writable(AWS_PATH))
 		{
 			$system_require['config_writable_core'] = TRUE;
 		}
 		
-		// 检测 /gzphp/config/ 是否有写权限
-		if (is_really_writable(GZ_PATH . 'config/'))
+		// 检测 AWS_PATH /config/ 是否有写权限
+		if (is_really_writable(AWS_PATH . 'config/'))
 		{
 			$system_require['config_writable_config'] = TRUE;
 		}
 		
 		$base_dir = str_replace("\\", "",dirname(dirname($_SERVER['PHP_SELF'])));
 		
+		if (!@file_get_contents('http://dev.t.qq.com/'))
+		{
+			$error_messages[] = '你的主机无法与腾讯微博通讯, 相关功能将不能使用';
+		}
+		
+		if (!@file_get_contents('http://api.weibo.com/'))
+		{
+			$error_messages[] = '你的主机无法与新浪微博通讯, 相关功能将不能使用';
+		}
+		
+		if (!@gethostbyname('graph.qq.com'))
+		{
+			$error_messages[] = '你的主机无法与 QQ 通讯, QQ 登录功能将不能使用';
+		}
+		
+		TPL::assign('error_messages', $error_messages);
 		TPL::assign('system_require', $system_require);
 		TPL::assign('base_dir', $base_dir);
 		TPL::output('install/index');
@@ -110,23 +122,31 @@ switch ($_POST['step'])
 		
 		foreach ($data_dir as $key => $dir_name)
 		{
-			if (! is_dir(ROOT_PATH . '/' . $dir_name))
+			if (! is_dir(ROOT_PATH . $dir_name))
 			{
-				if (! @mkdir(ROOT_PATH . '/' . $dir_name))
+				if (! @mkdir(ROOT_PATH . $dir_name))
 				{
-					$error_messages[] = '目录: ' . ROOT_PATH . '/' . $dir_name . ' 无法创建，请将网站根目录权限设置为 777, 或者创建这个目录设置权限为 777。';
+					$error_messages[] = '目录: ' . ROOT_PATH . $dir_name . ' 无法创建，请将网站根目录权限设置为 777, 或者创建这个目录设置权限为 777';
 				}
 			}
 		}
 		
-		if (! is_really_writable(GZ_PATH))
+		if (! is_really_writable(AWS_PATH))
 		{
-			$error_messages[] = '目录: ' . GZ_PATH . ' 无法写入，请将此目录权限设置为 777。';
+			$error_messages[] = '目录: ' . AWS_PATH . ' 无法写入，请将此目录权限设置为 777';
 		}
 		
 		if (class_exists('PDO', false))
 		{
-			TPL::assign('pdo_support', TRUE);
+			if (defined('PDO::MYSQL_ATTR_USE_BUFFERED_QUERY'))
+			{
+				TPL::assign('pdo_support', TRUE);
+			}
+		}
+		
+		if (function_exists('mysqli_close'))
+		{
+			TPL::assign('mysqi_support', TRUE);
 		}
 		
 		TPL::assign('error_messages', $error_messages);
@@ -135,6 +155,7 @@ switch ($_POST['step'])
 	
 	case 3 :
 		$db_config = array(
+			//'charset' => 'utf8',
 			'host' => $_POST['db_host'], 
 			'username' => $_POST['db_username'], 
 			'password' => $_POST['db_password'], 
@@ -147,11 +168,20 @@ switch ($_POST['step'])
 		}
 		else if (class_exists('PDO', false))
 		{
-			$db_driver = 'PDO_MYSQL';
+			if (defined('PDO::MYSQL_ATTR_USE_BUFFERED_QUERY'))
+			{
+				$db_driver = 'PDO_MYSQL';
+			}
 		}
-		else
+		
+		if (!$db_driver)
 		{
 			$db_driver = 'MySQLi';
+		}
+		
+		if (!$_POST['db_engine'])
+		{
+			$_POST['db_engine'] = 'MyISAM';
 		}
 		
 		try
@@ -160,17 +190,46 @@ switch ($_POST['step'])
 		}
 		catch (Exception $e)
 		{
-			H::js_pop_msg('数据库连接失败, 错误信息: ' . addslashes(strip_tags($e->getMessage())), './');
+			H::redirect_msg('数据库连接失败, 错误信息: ' . strip_tags($e->getMessage()), './');
 		}
 		
 		try
 		{
-			$db->query("SET NAMES utf8");
-			//连接测试成功，将数据库设置写入配置文件
+			$tables = $db->fetchAll('SHOW TABLES');
 		}
 		catch (Exception $e)
 		{
-			H::js_pop_msg('数据库连接失败, 错误信息: ' . addslashes(strip_tags($e->getMessage())), './');
+			H::redirect_msg('数据库连接失败, 错误信息: ' . strip_tags($e->getMessage()), './');
+		}
+		
+		if (number_format($db->getServerVersion(), 1) < 5)
+		{
+			H::redirect_msg('安装中止: Anwsion 要求使用 MySQL 5.0 以上版本的数据库支持, 您的服务器当前 MySQL 版本为: ' . $db->getServerVersion(), './');
+		}
+		
+		$db->query("SET NAMES utf8");
+		
+		if (!$_POST['db_prefix'] AND count($tables) > 0)
+		{
+			H::redirect_msg('数据库已经存在数据表, 不允许安装, 如要重新安装请先清空数据表.' . strip_tags($e->getMessage()), './');
+		}
+		
+		foreach ($tables AS $key => $table_info)
+		{
+			if (!is_array($table_info))
+			{
+				break;
+			}
+			
+			foreach ($table_info AS $_key => $table)
+			{
+				if (substr($table, 0, strlen($_POST['db_prefix'])) == $_POST['db_prefix'])
+				{
+					H::redirect_msg('数据库已经存在相同前缀的数据表, 不允许安装, 如要重新安装请先清空数据表.', './');
+				
+					break;
+				}
+			}
 		}
 		
 		$config = array(
@@ -181,11 +240,10 @@ switch ($_POST['step'])
 			'slave' => false
 		);
 		
-		$config_class = load_class('core_config');
-		$config_class->set('database', $config);
+		load_class('core_config')->set('database', $config);
 		
 		// 创建数据表
-		$db_table_querys = explode(';', str_replace('[#DB_PREFIX#]', $_POST['db_prefix'], file_get_contents(ROOT_PATH . '/install/db/mysql.sql')));
+		$db_table_querys = explode(";\r", str_replace(array('[#DB_PREFIX#]', '[#DB_ENGINE#]', "\n"), array($_POST['db_prefix'], $_POST['db_engine'], "\r"), file_get_contents(ROOT_PATH . 'install/db/mysql.sql')));
 		
 		foreach ($db_table_querys as $_sql)
 		{
@@ -198,6 +256,11 @@ switch ($_POST['step'])
 				$db->query($query_string);
 			}
 		}
+		
+		$db->insert($_POST['db_prefix'] . 'system_setting', array(
+			'varname' => 'db_engine',
+			'value' => 's:' . strlen($_POST['db_engine']) . ':"' . $_POST['db_engine'] . '";',
+		));
 		
 		TPL::output('install/final');
 		break;
@@ -214,45 +277,81 @@ switch ($_POST['step'])
 			'email' => $_POST['email'], 
 			'salt' => $salt,
 			'group_id' => 1,
+			'reputation_group' => 5,
 			'valid_email' => 1,
-			'is_first_login' => 0,
+			'is_first_login' => 1,
+			'reg_time' => time(),
+			'reg_ip' => ip2long(fetch_ip()),
+			'last_login' => time(),
+			'last_ip' => ip2long(fetch_ip()),
+			'last_active' => time(),
+			'invitation_available' => 10,
+			'integral' => 2000
 		);
 		
 		$db->insert($db_prefix . 'users', $data);
-		$db->insert($db_prefix . 'users_attrib', array('uid' => 1));
+		$db->insert($db_prefix . 'users_attrib', array('uid' => 1, 'signature' => ''));
+		
+		$db->insert($db_prefix . 'integral_log', array(
+			 'uid' => 1,
+			 'action' => 'REGISTER',
+			 'integral' => 2000,
+			 'note' => '初始资本',
+			 'balance' => 2000,
+			 'time' => time()
+		));
 		
 		//加载网站配置
 		$base_dir = dirname(dirname($_SERVER['PHP_SELF']));
-		$base_dir = ($base_dir == DIRECTORY_SEPARATOR) ? "" : $base_dir;
+		$base_dir = ($base_dir == DIRECTORY_SEPARATOR) ? '' : $base_dir;
+		$base_url =  'http' . ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 's' : '') . '://' . $_SERVER['HTTP_HOST'] . $base_dir;
 		
-		$insert_query = file_get_contents(ROOT_PATH . '/install/db/system_setting.sql');
+		$insert_query = file_get_contents(ROOT_PATH . 'install/db/system_setting.sql');
+		
 		$insert_query = str_replace('[#DB_PREFIX#]', $db_prefix, $insert_query);
-		$insert_query = str_replace('[#BASE_URL#]', serialize('http' . ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 's' : '') . '://' . $_SERVER['HTTP_HOST'] . $base_dir), $insert_query);
-		$insert_query = str_replace('[#UPLOAD_URL#]', serialize($base_dir . "/uploads"), $insert_query);
-		$insert_query = str_replace('[#UPLOAD_DIR#]', serialize(str_replace("\\", "/", ROOT_PATH) . "/uploads"), $insert_query);
+		$insert_query = str_replace('[#BASE_URL#]', serialize($base_url), $insert_query);
+		$insert_query = str_replace('[#UPLOAD_URL#]', serialize($base_url . "/uploads"), $insert_query);
+		$insert_query = str_replace('[#UPLOAD_DIR#]', serialize(str_replace("\\", "/", ROOT_PATH) . "uploads"), $insert_query);
 		$insert_query = str_replace('[#FROM_EMAIL#]', serialize($_POST['email']), $insert_query);
+		$insert_query = str_replace('[#DB_VERSION#]', serialize(G_VERSION_BUILD), $insert_query);
 		
-		$db->query($insert_query);
+		//$db->query($insert_query);
 		
-		//生成 setting 文件
-		$setting_data = $db->fetchAll($db->select()->from($db_prefix . 'system_setting'));
+		$sql_query = str_replace("\n", "\r", $insert_query);
 		
-		foreach ($setting_data as $key => $val)
+		$db_table_querys = explode(";\r", $sql_query);
+			
+		foreach ($db_table_querys as $_sql)
 		{
-			$setting[$val['varname']] = unserialize($val['value']);
+			if ($query_string = trim(str_replace(array(
+				"\r", 
+				"\n", 
+				"\t"
+			), '', $_sql)))
+			{
+				try {
+					$db->query($query_string);
+				}
+				catch (Exception $e)
+				{
+					die('SQL Error: ' . $e->getMessage() . '<br /><br />Query: ' . $query_string);
+				}
+			}
 		}
 		
-		load_class('core_config')->set('setting', $setting);
+		$db->insert($db_prefix . 'system_setting', array(
+			'varname' => 'register_agreement',
+			'value' => serialize(file_get_contents(ROOT_PATH . 'install/db/register_agreement.txt')),
+		));
 		
-		//生成 gz_config.inc.php
-		$gz_config = file_get_contents(ROOT_PATH . '/gzphp/gz_config.dist.php');
-		$gz_config = str_replace('{G_COOKIE_PREFIX}', fetch_salt(3) . '_', $gz_config);
-		$gz_config = str_replace('{G_SECUKEY}', fetch_salt(12), $gz_config);
-		$gz_config = str_replace('{G_COOKIE_HASH_KEY}', fetch_salt(15), $gz_config);
+		//生成 config.inc.php
+		$config_file = file_get_contents(AWS_PATH . '/config.dist.php');
+		$config_file = str_replace('{G_COOKIE_PREFIX}', fetch_salt(3) . '_', $config_file);
+		$config_file = str_replace('{G_SECUKEY}', fetch_salt(12), $config_file);
+		$config_file = str_replace('{G_COOKIE_HASH_KEY}', fetch_salt(15), $config_file);
 		
-		file_put_contents(ROOT_PATH . '/gzphp/gz_config.inc.php', $gz_config);
-		
-		file_put_contents(GZ_PATH . '/config/install.lock.php', time());
+		file_put_contents(AWS_PATH . '/config.inc.php', $config_file);
+		file_put_contents(AWS_PATH . '/config/install.lock.php', time());
 		
 		TPL::output('install/success');
 		break;

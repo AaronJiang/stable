@@ -3,7 +3,7 @@
 +--------------------------------------------------------------------------
 |   Anwsion [#RELEASE_VERSION#]
 |   ========================================
-|   by Tatfook Network Team
+|   by Anwsion dev team
 |   (c) 2011 - 2012 Anwsion Software
 |   http://www.anwsion.com
 |   ========================================
@@ -12,5 +12,5 @@
 +---------------------------------------------------------------------------
 */
 
-define('G_VERSION', '0.4 Beta 4');
-define('G_VERSION_BUILD', '20120525');
+define('G_VERSION', '1.1.2');
+define('G_VERSION_BUILD', '20121123');

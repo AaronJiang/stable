@@ -3,18 +3,18 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <meta http-equiv="X-UA-Compatible" content="<?php echo X_UA_COMPATIBLE; ?>" />
-<title><?php echo $this->page_title;?></title>
-<style type="text/css" media="all">
-	@import url("resources/css/default/admin_login.css");
-</style>
-<script type="text/javascript" src="../static/js/jquery.js"></script>
-<script type="text/javascript" src="resources/js/simpla.jquery.configuration.js"></script>
-<script type="text/javascript" src="resources/js/facebox.js"></script>
-<script type="text/javascript" src="resources/js/jquery.wysiwyg.js"></script>
-<script type="text/javascript" src="../static/js/jquery.form.js"></script>
-<script type="text/javascript" src="../static/js/functions.js"></script>
+<title><?php echo $this->page_title; ?></title>
+<base href="<?php echo get_setting('base_url');?>/<?php echo G_INDEX_SCRIPT; ?>" />
+<?php if (is_array($this->_import_js_files)) { ?>
+<?php foreach ($this->_import_js_files AS $import_js) { ?>
+<script src="<?php echo $import_js; ?>?v=<?php echo G_VERSION_BUILD; ?>" type="text/javascript"></script>
+<?php } ?>
+<?php } ?>
+<link href="<?php echo G_STATIC_URL; ?>/admin/css/default/admin_login.css?v=<?php echo G_VERSION_BUILD; ?>" rel="stylesheet" type="text/css" />
 <script type="text/javascript">
-	var G_BASE_URL = '<?php echo get_setting('base_url'); ?>';
+	var G_INDEX_SCRIPT = '<?php echo G_INDEX_SCRIPT; ?>';
+	var G_BASE_URL = '<?php echo get_setting('base_url'); ?>/<?php echo rtrim(G_INDEX_SCRIPT, '/'); ?>';
+	var G_USER_ID = <?php echo $this->user_id; ?>;
 </script>
 </head>
 <body>
@@ -22,8 +22,10 @@
   <p class="default_head"><span class="default_logo"></span></p>
   <div class="default_contents">
     <div class="default_error" id="notification"><h3 id="not_cont">请输入 E-mail / 账号、密码</h3></div>
-    <form id="login_form" onsubmit="return false" action="?c=login&act=login_process_ajax" method="post">
-      <input type="hidden" value="3" name="step">
+    <form id="login_form" onsubmit="return false" action="admin/login_process_ajax/" method="post">
+		<?php if($_GET['url']){ ?>
+			<input type="hidden" name="url" value="<?php echo $_GET['url']; ?>">
+		<?php } ?>
       <ul class="default_ul">
         <li>
           <label class="label">E-mail：</label>
@@ -36,23 +38,30 @@
           </li>
         <li>
           <label class="label">密码：</label>
-		    <input class="default_text" type="password" name="password" value="" id="password" onkeydown="if(event.keyCode == 13) { ajax_post($('#login_form'), _login_post_processer); };"/>
+		    <input class="default_text" type="password" name="password" value="" id="password" onkeydown="if (event.keyCode == 13) { document.getElementById('login_submit').click(); };"/>
         </li>
+        <?php if(get_setting('admin_login_seccode') == 'Y'){ ?>
         <li>
           <label class="label">验证码：</label>
-		    <input class="default_text" style="width:60px;" type="text" name="seccode_verify" value="" id="seccode_verify" onkeydown="if (event.keyCode == 13) { ajax_post($('#login_form'), _login_post_processer); };"/> &nbsp; <img src="<?php echo get_setting('base_url'); ?>/account/?c=captcha" onclick="this.src='<?php echo get_setting('base_url'); ?>/account/?c=captcha&rnd=' + Math.random();" id="seccode" style="vertical-align:middle" /> <a href="javascript:void(0);" onclick="$('#seccode').click();">换一张</a>
+		    <input class="default_text" style="width:60px;" type="text" name="seccode_verify" value="" id="seccode_verify" onkeydown="if (event.keyCode == 13) { document.getElementById('login_submit').click(); };"/> &nbsp; <img src="" onclick="this.src = G_BASE_URL + '/account/captcha/?' + Math.floor(Math.random() * 10000);" id="seccode" style="vertical-align:middle" /> <a href="javascript:void(0);" onclick="$('#seccode').click();">换一张</a>
         </li>
-        <li  class="default_setup_n"><a  class="default_install" href="javascript:;" onclick="ajax_post($('#login_form'), _login_post_processer);return false;">登 录</a></li>
+        <?php } ?>
+        <li  class="default_setup_n"><a id="login_submit" class="default_install" href="javascript:;" onclick="ajax_post($('#login_form'), _login_post_processer);">登 录</a></li>
       </ul>
     </form>
   </div>
 </div>
 
-<script>
+
+<script type="text/javascript">
+
+$(document).ready(function () {
+	$('#seccode').click();
+});
 
 function _login_post_processer(result)
 {
-	if(result.errno == "-1")
+	if (result.errno == "-1")
 	{
 		$("#notification").removeClass("information").addClass("error");
 		$("#not_cont").html(result.err);
@@ -65,11 +74,12 @@ function _login_post_processer(result)
 		}
 		else
 		{
-			window.location.href = '?c=main';
+			window.location.href = G_BASE_URL + '/admin/';
 		}
 	}
 }
-
 </script>
+
+<?php TPL::output('global/debuger.tpl.htm'); ?>
 </body>
 </html>

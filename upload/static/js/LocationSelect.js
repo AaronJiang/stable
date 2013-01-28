@@ -1,904 +1,615 @@
-/*global ActiveXObject, geoip_latitude, geoip_longitude, jsonParse */
-
 var com = {};
 com.elfvision = {};
 com.elfvision.kit = {};
 com.elfvision.kit.LocationSelect = {};
 com.elfvision.ajax = {};
-com.elfvision.DEBUG = true;
-
-
-
-
- (function() {
-    var ListModel,
-    ListView,
-    ListController,
-    SelectGroup,
-    LocationSelect,
-    GeoDetect,
-    ListHelper,
-    XhrFactory,
-    getJson,
-    jsonp,
-    getScript,
-    debug,
-    addEvent,
-    delegator,
-    SubjectHelper,
-    isArray,
-    serializeObj,
-    forEach;
-
-    debug = function() {
-        if (com.elfvision.DEBUG) {
-			
-            var start = new Date().getTime();
-
-
-            return function() {
-                var i = 0,
-                length = arguments.length,
-                args = ["[DEBUG at ", (new Date().getTime() - start), " ] : "];
-                for (; i < length; i++) {
-                    args.push(arguments[i]);
-                }
-                if (window.console !== undefined && typeof window.console.log == "function") {
-                   console.log.apply(console, args);
-                } else {
-                    
-                }
-
-
-            };
-
-        } else {
-            return function() {};
-        }
-    } ();
-
-    delegator = function(that, func) {
-        return function() {
-            func.apply(that, arguments);
-        };
-    };
-
-    addEvent = function(obj, event, func, that) {
-        //a simple event manager using DOM Level 1
-        debug("attaching event", event, "on the object", obj);
-        var handler = function(e) {
-            func.apply(that || obj, [e]);
-        },
-        e;
-        if(window.jQuery !== undefined) {
-            jQuery(obj).bind(event, handler);
-        } else {
-            if (document.addEventListener) {
-                obj.addEventListener(event, handler, false);
-            } else if (document.attachEvent) {
-                handler = function(e) {
-                    if (!e) {
-                        e = window.event;
-                    }
-                    var event = {
-                        //a synthetic event object
-                        _event: e,
-                        // In case we really want the IE event object
-                        type: e.type,
-                        target: e.srcElement,
-                        currentTarget: obj,
-                        relatedTarget: e.fromElement ? e.fromElement: e.toElement,
-                        eventPhase: (e.srcElement == obj) ? 2: 3,
-                        // Mouse coordinates
-                        clientX: e.clientX,
-                        clientY: e.clientY,
-                        screenX: e.screenX,
-                        screenY: e.screenY,
-                        // Key state
-                        altKey: e.altKey,
-                        ctrlKey: e.ctrlKey,
-                        shiftKey: e.shiftKey,
-                        charCode: e.keyCode,
-                        // Event-management functions
-                        stopPropagation: function() {
-                            this._event.cancelBubble = true;
-                        },
-                        preventDefault: function() {
-                            this._event.returnValue = false;
-                        }
-                    };
-
-                    func.apply(that || obj, [event]);
-
-                };
-
-                obj.attachEvent("on" + event, handler);
-            }
-        }
-
-
-
-        /*
-		var f1 = obj["on"+event],
-			f2 = function(e) {
-				var t = that || obj;
-				if(f1 instanceof Function) {
-					f1.apply(obj, [e]);
+com.elfvision.DEBUG = false;
+(function() {
+	var e, b, m, p, h, f, a, c, g, r, o, k, l, q, j, i, d, n;
+	k = function() {
+		if (com.elfvision.DEBUG) {
+			var s = new Date().getTime();
+			return function() {
+				var u = 0, v = arguments.length, t = [ "[DEBUG at ",
+						(new Date().getTime() - s), " ] : " ];
+				for (; u < v; u++) {
+					t.push(arguments[u])
 				}
-				func.apply(t, [e]);
-			};
-		f1 = f2;
-		*/
-    };
-
-    XhrFactory = function() {
-        var factory,
-        test,
-        factories = [
-        function() {
-            return new XMLHttpRequest();
-        },
-        function() {
-            return new ActiveXObject("Msxml2.XMLHTTP");
-        },
-        function() {
-            return new ActiveXObject("Msxml3.XMLHTTP");
-        },
-        function() {
-            return new ActiveXObject("Microsoft.XMLHTTP");
-        }
-        ];
-
-        return {
-            create: function() {
-                if (factory) {
-                    return factory();
-                }
-
-                for (var i = 0; i < factories.length; i++) {
-                    try {
-                        var test = factories[i];
-                        var request = test();
-                        if (request
-                        /* && request.open*/
-                        ) {
-                            factory = test;
-                            return request;
-                        }
-                    }
-                    catch(e) {
-                        continue;
-                    }
-                }
-
-                //if we get here, the browser doesn't support xhr
-                factory = function() {
-                    throw new Error("XMLHttpRequest not supported");
-                };
-                factory();
-
-            }
-        };
-    } ();
-
-    getJson = function(config) {
-        //debug("Get Json ",config);
-        if (!config.url) {
-            throw new Error("getJson : Must provide url for the request!");
-        }
-        var request = XhrFactory.create();
-        //request.setRequestHeader("Content-Type", "application/json");
-        request.onreadystatechange = function() {
-            debug("Request Object ", request);
-            if (request.readyState == 4) {
-                // If the request is finished
-                if (request.status == 200 || request.status === 0) {
-                    //if the request is runned by a html local file, we cannot judge its destiny by status code, as it always returns status 0.
-                    debug("JSON is successfully retrived according to ", config);
-                    if (config.callback) {
-                        debug("about to parse json");
-                        var data = JSON.parse(request.responseText);
-                        //var data = eval("(" + request.responseText + ")");
-                        debug("parsed ", data);
-                        config.callback.call(this, data);
-                    }
-                }
-            }
-        };
-        request.open("GET", config.url + "?_=" + Math.random(), true);
-        request.setRequestHeader("Cache-Control", "max-age=0,no-cache,no-store,post-check=0,pre-check=0");
-        request.setRequestHeader("Expires", "Mon, 26 Jul 1997 05:00:00 GMT");
-        request.send(null);
-
-    };
-
-    jsonp = function(url, cb) {
-        var script = document.createElement('script'),
-        reg,
-        func;
-        if (cb) {
-            reg = /callback=(\w+)&*/;
-            func = reg.exec(url)[1];
-            window[func] = function(data) {
-                cb(data);
-                window[func] = null;
-            };
-        }
-        script.src = url;
-        document.getElementsByTagName('head')[0].appendChild(script);
-    };
-
-    getScript = function(fileName, callback) {
-        var scriptTag = document.createElement("script");
-        scriptTag.src = fileName;
-        debug("getting script", fileName);
-        if (callback) {
-            scriptTag.onload = callback;
-            scriptTag.onreadystatechange = function() {
-                if (scriptTag.readyState == 4 || scriptTag.readyState == "loaded" || scriptTag.readyState == "complete") {
-                    callback();
-                }
-            };
-        }
-
-        document.getElementsByTagName("head")[0].appendChild(scriptTag);
-
-    };
-
-    forEach = function(array, fun) {
-        if (!Array.prototype.forEach) {
-            var len = array.length >>> 0;
-            if (typeof fun != "function") {
-                throw new TypeError();
-            }
-            var thisp = arguments[1];
-            for (var i = 0; i < len; i++)
-            {
-                if (i in array) {
-                    fun.call(thisp, array[i], i, this);
-                }
-
-            }
-        } else {
-            return Array.prototype.forEach.call(array, fun);
-        }
-    };
-
-    serializeObj = function(obj) {
-        var str = [],
-        unit = [];
-        for (var key in obj) {
-            unit = [];
-            unit.push(key);
-            unit.push("=");
-            unit.push(obj[key]);
-            str.push(unit.join(""));
-        }
-        return str.join("&");
-    };
-
-    isArray = function(obj) {
-        if (obj && typeof obj === "object" && obj.constructor === Array) {
-            return true;
-        }
-    };
-
-    SubjectHelper = function() {
-        this.observers = [];
-        this.guid = 0;
-    };
-
-    SubjectHelper.prototype.subscribe = function(observer) {
-        //debug("the subject ", this ," is subscribed by", observer);
-        var guid = this.guid++;
-        this.observers[guid] = observer;
-        return guid;
-    };
-
-    SubjectHelper.prototype.unSubscribe = function(guid) {
-        delete this.observers[guid];
-    };
-
-    SubjectHelper.prototype.notify = function(eventArgs) {
-        //debug("this subject", this, " has these observers ", this.observers);
-        //debug(this["observers"]);
-        for (var item in this.observers) {
-            var observer = this.observers[item];
-            if (observer instanceof Function) {
-                //debug("notifying the observer", observer);
-                observer.call(this, eventArgs);
-            }
-            else {
-                observer.update.call(this, eventArgs);
-            }
-        }
-    };
-
-
-    ListModel = function(obj) {
-        this.onRowsInserted = new SubjectHelper();
-        this.onRowsRemoved = new SubjectHelper();
-        this.onRowsUpdated = new SubjectHelper();
-        this.onSelectedIndexChanged = new SubjectHelper();
-        this.items = [];
-        this.selectedIndex = 0;
-        this.level = obj.level || 0;
-        this.label = obj.label || "Select...";
-    };
-
-
-    ListModel.prototype.read = function(index) {
-        if (index) {
-            debug("reading items[" + index + "]:", this.items[index]);
-            return this.items[index];
-        } else {
-            return this.items;
-        }
-    };
-
-
-    ListModel.prototype.insert = function(items) {
-        if (isArray(items)) {
-            items = [items];
-            this.items = this.items.concat(items);
-        } else {
-            var item = items;
-            this.items.push(item);
-        }
-        this.onRowsInserted.notify({
-            "source": this,
-            "items": items
-        });
-    };
-
-
-    ListModel.prototype.remove = function(id) {
-        var thing;
-        if (id) {
-            forEach(this.items,
-            function(item, index) {
-                if (item.id === id) {
-                    thing = item;
-                    this.items.splice(index, 1);
-                }
-            });
-        } else {
-            //if id is not specified, clear all
-            this.items = [];
-        }
-        debug("notifying removing");
-        this.onRowsRemoved.notify({
-            "source": this,
-            "items": [thing]
-        });
-    };
-
-    ListModel.prototype.update = function(items) {
-        items = items || [];
-        debug("updating list model with ", items);
-        this.items = [{
-            "id": 0,
-            "text": this.label
-        }].concat(items);
-        //this.setSelectedIndex(0);
-        debug("notifying updating");
-        this.onRowsUpdated.notify({
-            "source": this,
-            "items": items
-        });
-    };
-
-    ListModel.prototype.getSelectedIndex = function() {
-        return this.selectedIndex;
-    };
-
-    ListModel.prototype.setSelectedIndex = function(index) {
-        var previous = this.getSelectedIndex();
-        if (previous === index) {
-            return;
-        }
-        this.selectedIndex = index;
-        debug("notifying index changed", index);
-        this.onSelectedIndexChanged.notify({
-            source: this,
-            previous: previous,
-            present: index,
-            previousItem: this.read(previous),
-            presentItem: this.read(index),
-            level: this.level
-        });
-    };
-
-    ListView = function(obj) {
-        this.model = obj.model;
-        this.controller = obj.controller;
-        this.element = obj.element;
-
-        var updateList = delegator(this, this.rebuildList),
-        updateGroup = delegator(this.controller.parent, this.controller.parent.update);
-
-
-        this.model.onRowsInserted.subscribe(updateList);
-        this.model.onRowsRemoved.subscribe(updateList);
-        this.model.onRowsUpdated.subscribe(updateList);
-
-        /*onSelectedIndexChanged will cause ListModel to call SelectGroup.update method once ListModel.selectedIndex is changed
-		in fact, DOM Event(onChange) will cause ListModel to change its selectedIndex, while the selectedIndex is observed and once changed, will trigger the SelectGroup to load its silbling menu.
-		*/
-        this.model.onSelectedIndexChanged.subscribe(updateGroup);
-        debug("this list item", this);
-
-        addEvent(this.element, "change", this.controller.updateSelectedIndex, this.controller);
-        //change selectedIndex in ListModel
-    };
-
-    ListView.prototype.show = function() {
-        this.element.style.display = "inline-block";
-    };
-
-    ListView.prototype.hide = function() {
-        this.element.style.display = "none";
-    };
-
-
-
-    ListView.prototype.rebuildList = function(e) {
-        if (e && e.present && e.present === 0) {
-            this.elements.list.selectedIndex = 0;
-            //set html dropdown menu to default item
-            return;
-        }
-        debug("Rebuilding list ", this);
-        var list = this.element,
-        items = this.model.read(),
-        length = items.length,
-        opt;
-
-        list.innerHTML = "";
-        debug(items.length);
-
-        forEach(items,
-        function(item, index) {
-            opt = new Option();
-            opt.setAttribute("value", item.id);
-            opt.appendChild(document.createTextNode(item.text));
-            list.appendChild(opt);
-        });
-
-        this.model.setSelectedIndex(0);
-    };
-
-
-    ListController = function(obj) {
-        this.parent = obj.parent;
-        this.model = new ListModel({
-            level: obj.level,
-            label: obj.label
-        });
-        this.view = new ListView({
-            model: this.model,
-            controller: this,
-            element: obj.element
-        });
-
-    };
-
-    ListController.prototype.refresh = function(data) {
-        //update model with given data
-        debug("refresh data with ", data);
-        this.model.update(data);
-    };
-
-    ListController.prototype.updateSelectedIndex = function(e) {
-        this.model.setSelectedIndex(e.target.selectedIndex);
-    };
-
-    ListController.prototype.selectByText = function(text) {
-        var that = this;
-        forEach(this.model.read(),
-        function(item, index) {
-	
-            if (item.text.match("^" + text) == text) {
-                debug("auto detected ", item, index);
-                that.model.setSelectedIndex(index);
-                that.view.element.selectedIndex = index;
-            }
-        });
-    };
-
-	/** 通过 ID设置 **/
-    ListController.prototype.selectByID = function(ID) {
-        var that = this;
-        forEach(this.model.read(),
-        function(item, index) {
-			
-            if (item.id.toString().match("^" + ID) == ID) {
-//				alert("__cc__"+item.id);
-                debug("auto detected ", item, index);
-                that.model.setSelectedIndex(index);
-                that.view.element.selectedIndex = index;
-            }
-        });
-    };
-
-
-    ListController.prototype.getValue = function() {
-        return this.model.read(this.model.getSelectedIndex()).text;
-    };
-
-
-
-    SelectGroup = function(obj) {
-        this.labels = obj.labels;
-        this.currentGeo = {};
-        this.lists = [];
-        this.elements = obj.elements;
-        this.parent = obj.parent;
-    };
-
-    SelectGroup.prototype.init = function() {
-        debug("init select group");
-
-        var i = 0,
-        level = this.labels.length,
-        that = this;
-
-        for (; i < level; i++) {
-            //building list for SelectGroup
-            this.lists.push(new ListController({
-                label: this.labels[i],
-                element: this.elements[i],
-                level: i,
-                parent: that
-            }));
-        }
-        debug("lists built ", this);
-        debug(this.parent.listHelper.find( - 1));
-        this.lists[0].refresh(this.parent.listHelper.find( - 1));
-        this.lists[0].view.show();
-    };
-
-
-    SelectGroup.prototype.update = function(e) {
-        //this event is always behind ListContoller.updateSelected
-        if (e.level == this.lists.length - 1) {
-            // if this is not the last list
-            return;
-        }
-        debug("Updating SelectGroup contents", this);
-        if (e.present === 0) {
-            //if the user undo
-            var i = e.level + 1,
-            length = this.lists.length;
-            for (; i < length; i++) {
-                this.lists[i].refresh();
-                this.lists[i].view.hide();
-            }
-            return;
-        }
-        switch (e.level) {
-        case 0:
-            this.currentGeo.province = e.presentItem.text;
-            break;
-        case 1:
-            this.currentGeo.city = e.presentItem.text;
-            break;
-        case 2:
-            this.currentGeo.district = e.presentItem.text;
-            break;
-        }
-
-        this.lists[e.level + 1].refresh(this.parent.listHelper.find(e.level, e.presentItem.id));
-        this.lists[e.level + 1].view.show();
-
-    };
-
-    SelectGroup.prototype.setValues = function(values) {
-        debug("setting group values", values);
-        var that = this;
-        forEach(values,
-        function(item, index) {
-			
-            if (item) {
-                that.lists[index].selectByText( item);
-            }
-        });
-    };
-
-    SelectGroup.prototype.setValuesID = function(values) {
-        debug("setting group values", values);
-        var that = this;
-        forEach(values,
-        function(item, index) {
-			
-			
-            if (item) {
-                that.lists[index].selectByID(item);
-            }
-        });
-    };
-
-    SelectGroup.prototype.setValuesCode = function(values) {
-        debug("setting group values", values);
-        var that = this;
-        forEach(values,
-        function(item, index) {
-
-            if (item) {
-                that.lists[index].selectByText( item);
-            }
-        });
-    };
-
-
-    SelectGroup.prototype.getValues = function() {
-        var values = [];
-        forEach(this.lists,
-        function(item, index) {
-            values.push(item.getValue());
-        });
-        return values;
-    };
-
-
-    /*
-		finnally we wrap up all parts
-		config {
-			element : [DOMElement,...]
-			detectGeoLocation : Boolean
-			listHelper : ListHelper Object
-			detector ： Function
+				if (window.console !== undefined
+						&& typeof window.console.log == "function") {
+					console.log.apply(console, t)
+				} else {
+				}
+			}
+		} else {
+			return function() {
+			}
 		}
-	*/
-    LocationSelect = function(config) {
-
-        this.detectGeoLocation = config.detectGeoLocation === undefined ? true: config.detectGeoLocation;
-        this.detector = config.detector || GeoDetect;
-		
-		//alert(this.detector);
-        this.listHelper = config.listHelper || ListHelper.getInstance({
-            dataUrl: config.dataUrl
-        });
-        this.selectGroup = new SelectGroup({
-            parent: this,
-            labels: config.labels,
-            elements: config.elements
-        });
-        var that = this;
-
-		//alert(that.detector);
-
-		
-        this.listHelper.fetch(function() {
-            //callback after data feteched
-            debug("exec fetech callback");
-            that.selectGroup.init();
-			//this.detector = config.detector;
-			
-			if (that.detectGeoLocation) {
-				
-	            that.detector();
-	        }
-			// that.detector();
-			//alert(that.detector);
-			//that.select(["湖北省","武汉市"]);
-        });
-	
-        
-
-    };
-
-    LocationSelect.prototype.report = function() {
-        return this.selectGroup.getValues();
-    };
-
-    /*
-		arguments : 
-			values : Array<String>
-		descriptions : set values of all list menu by its text labels respectively. you should pass an array containing the text labels of desired option items, most importantly, in the right order.
-	*/
-    LocationSelect.prototype.select = function(values) {
-        this.selectGroup.setValues(values);
-    };
-	
-	/**用ID设置 **/
-    LocationSelect.prototype.selectID = function(values) {
-//		alert(values);
-        this.selectGroup.setValuesID(values);
-    };
-    /*
-		this is a sample function to detect geolocation by IP address
-		we parse users' latitude and longitude using Maxmind GeoCity API
-		and then we parse user's address with the help of the lat and lng info we got
-		lastly, we extract the info inside the response from Google map
-		
-		as you may know, due to the cross domain limits, we cannot take advantage of Google Map WebService directly. In order to work around, I manage to proxy the json data through Yahoo Query API
-		yes, it actually slows down a little bit, but considering the immense file size of complete GoogleMap API scripts (if we wanna use google.maps.Geocoder class instead),
-it's worthwhile.	
-
-	if you really want to detect in your own way, you just implement your own function.
-	after you get your results,  use LocationSelect.select method to explictly manipulate the values of all menu lists.
-	
-	*/
-    GeoDetect = function() {
-        debug("Detect!!!!");
-        var that = this,
-        queryStr;
-        getScript("http://j.maxmind.com/app/geoip.js",
-        function() {
-            debug("Maxmind API Loaded!");
-            queryStr = "http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20json%20where%0A%20%20url%3D%22http%3A%2F%2Fmaps.google.com%2Fmaps%2Fapi%2Fgeocode%2Fjson%3Flatlng%3D" + geoip_latitude() + "%2C" + geoip_longitude() + "%26sensor%3Dfalse%26language%3Dzh-CN%22&format=json&diagnostics=true&callback=locationselectcb";
-
-            jsonp(queryStr,
-            function(data) {
-                debug("Geocoder Request Completed through YQL ", data);
-
-                if (data.query.results.json.status === "OK") {
-
-                    var parts = data.query.results.json.results[0].address_components,
-                    geo = {};
-                    debug("Geocoder statuts ok", parts);
-                    forEach(parts,
-                    function(item, index) {
-                        var type = item.types[0];
-                        if (type === "locality") {
-                            geo.city = item.long_name;
-                        }
-                        else if (type === "administrative_area_level_1") {
-                            geo.province = item.long_name;
-                        }
-                    });
-                    that.select([geo.province, geo.city]);
-                }
-            });
-
-        });
-
-
-
-
-    };
-
-
-    /*
-		ListHelper Object - a very important object to fetch, filter and cache data
-		
-		this should be an interface for users to implement their own ListHelper so that they can adapt to their own enviornment.	
-		Considering the perfromance issuse, it should be a singleton.
-		this ListHelper serves as an example and is uesed as default ListHelper if users don't assign a specific ListHelper of their own.
-		ListHelper at least shuold have all methods in this class.
-	*/
-    ListHelper = function() {
-        var instance,
-        constructor = function(config) {
-            //private memebers
-            var dataUrl = config.dataUrl || "js/areas_1.0.json",
-            cache = function() {
-                /*
-						cache variable as the storage for json records
-						key is the name of record name, and value is an associative array, e.g. 
-						{
-							"city" : [Record...]
-						}
-
-						Record Object is a simple js object, which has following members:
-
-						{
-							id: 430010,
-							text: "Wuhan"
-						}
-
-						id : Number as unique identifier
-						text : String as visual identifier
-					*/
-
-                var storage = {};
-
-                return {
-                    get: function(key) {
-                        //debug("feteching from cache, ", storage[key]);
-                        return storage[key];
-                    },
-                    set: function(key, value) {
-                        //debug("save to cache, ", value);
-                        storage[key] = value;
-                    }
-                };
-
-            } ();
-
-            return {
-                //public members
-                fetch: function(callback) {
-                    debug("feteching areas data");
-                    var cb = function(data) {
-                        //store all the geo data in the cache
-                        debug("area data : ", data);
-                        cache.set("province", data.province);
-                        cache.set("city", data.city);
-                        cache.set("district", data.district);
-                        //debug("area testing with cache.get('province')", cache.get("province"));
-                        callback();
-                    };
-
-                    getJson({
-                        url: dataUrl,
-                        callback: cb
-                    });
-                },
-                find: function(level, id) {
-                    /* 
-						find data by level and id, level
-						level -1 : data for options of first menu when this component is loaded
-						level n(n>=0) : this query request is submitted by the n-th list menu.
-						id : the unique identifier that can be used to query the descendent records. In the postal system of China, 430000 is the zip for Hubei Province, while 430010 is the city of Wuhan, which is within Hubei. If we want to query all the cities in Hubei, we should pass id with value of 430000. The query algorithm here is designed for Chinese Zipcode.
-					*/
-                    var results = [];
-                    debug("querying by record id : ", id, "by list in level : ", level);
-                    if (cache.get(id)) {
-                        debug("lucky! we have it cached");
-                        results = cache.get(id);
-                    } else {
-                        debug("finding it in areas data");
-                        //if the request is submitted by first level menu
-                        if (level === -1) {
-                            debug("this is a query for province data");
-                            results = cache.get("province");
-                        } else {
-                            //procced with query
-                            var prefix = id.toString().substring(0, (level + 1) * 2),
-                            reg = new RegExp("^" + prefix + "\\d*"),
-                            candidate = level === 0 ? cache.get("city") : cache.get("district"),
-                            i = 0,
-                            length = candidate.length;
-
-                            forEach(candidate,
-                            function(item, index) {
-                                if (reg.test(item.id)) {
-                                    results.push(candidate[index]);
-                                }
-                            });
-                        }
-                    }
-                    debug("Return results : ", results);
-                    return results;
-                }
-            };
-        };
-
-        return {
-            getInstance: function(config) {
-                if (!instance) {
-                    instance = constructor(config);
-                }
-                return instance;
-            }
-        };
-    } ();
-
-    //import to the my namespace
-    com.elfvision.kit.LocationSelect = LocationSelect;
-    com.elfvision.ajax.XhrFactory = XhrFactory;
-    com.elfvision.ajax.getJson = getJson;
-    com.elfvision.ajax.jsonp = jsonp;
-    com.elfvision.ajax.getScript = getScript;
-
-})();
-
-if(window.jQuery !== undefined) {
-	
-	$.LocationSelect = {
-		build : function(user_config) {
-			var config = user_config, instance;
-			config.elements = this.get();
-			instance = new com.elfvision.kit.LocationSelect(user_config);
-			$.LocationSelect.all[config.name] = instance;
-			return this;
+	}();
+	q = function(t, s) {
+		return function() {
+			s.apply(t, arguments)
 		}
 	};
-	
+	l = function(x, v, u, t) {
+		k("attaching event", v, "on the object", x);
+		var s = function(y) {
+			u.apply(t || x, [ y ])
+		}, w;
+		if (window.jQuery !== undefined) {
+			jQuery(x).bind(v, s)
+		} else {
+			if (document.addEventListener) {
+				x.addEventListener(v, s, false)
+			} else {
+				if (document.attachEvent) {
+					s = function(z) {
+						if (!z) {
+							z = window.event
+						}
+						var y = {
+							_event : z,
+							type : z.type,
+							target : z.srcElement,
+							currentTarget : x,
+							relatedTarget : z.fromElement ? z.fromElement
+									: z.toElement,
+							eventPhase : (z.srcElement == x) ? 2 : 3,
+							clientX : z.clientX,
+							clientY : z.clientY,
+							screenX : z.screenX,
+							screenY : z.screenY,
+							altKey : z.altKey,
+							ctrlKey : z.ctrlKey,
+							shiftKey : z.shiftKey,
+							charCode : z.keyCode,
+							stopPropagation : function() {
+								this._event.cancelBubble = true
+							},
+							preventDefault : function() {
+								this._event.returnValue = false
+							}
+						};
+						u.apply(t || x, [ y ])
+					};
+					x.attachEvent("on" + v, s)
+				}
+			}
+		}
+	};
+	c = function() {
+		var s, u, t = [ function() {
+			return new XMLHttpRequest()
+		}, function() {
+			return new ActiveXObject("Msxml2.XMLHTTP")
+		}, function() {
+			return new ActiveXObject("Msxml3.XMLHTTP")
+		}, function() {
+			return new ActiveXObject("Microsoft.XMLHTTP")
+		} ];
+		return {
+			create : function() {
+				if (s) {
+					return s()
+				}
+				for ( var v = 0; v < t.length; v++) {
+					try {
+						var y = t[v];
+						var w = y();
+						if (w) {
+							s = y;
+							return w
+						}
+					} catch (x) {
+						continue
+					}
+				}
+				s = function() {
+					throw new Error("XMLHttpRequest not supported")
+				};
+				s()
+			}
+		}
+	}();
+	g = function(s) {
+		if (!s.url) {
+			throw new Error("getJson : Must provide url for the request!")
+		}
+		var t = c.create();
+		t.onreadystatechange = function() {
+			k("Request Object ", t);
+			if (t.readyState == 4) {
+				if (t.status == 200 || t.status === 0) {
+					k("JSON is successfully retrived according to ", s);
+					if (s.callback) {
+						k("about to parse json");
+						var u = JSON.parse(t.responseText);
+						k("parsed ", u);
+						s.callback.call(this, u)
+					}
+				}
+			}
+		};
+		t.open("GET", s.url, true);
+		t.setRequestHeader("Cache-Control",
+				"max-age=0,no-cache,no-store,post-check=0,pre-check=0");
+		t.setRequestHeader("Expires", "Mon, 26 Jul 1997 05:00:00 GMT");
+		t.send(null)
+	};
+	r = function(u, s) {
+		var t = document.createElement("script"), v, w;
+		if (s) {
+			v = /callback=(\w+)&*/;
+			w = v.exec(u)[1];
+			window[w] = function(x) {
+				s(x);
+				window[w] = null
+			}
+		}
+		t.src = u;
+		document.getElementsByTagName("head")[0].appendChild(t)
+	};
+	o = function(u, t) {
+		var s = document.createElement("script");
+		s.src = u;
+		k("getting script", u);
+		if (t) {
+			s.onload = t;
+			s.onreadystatechange = function() {
+				if (s.readyState == 4 || s.readyState == "loaded"
+						|| s.readyState == "complete") {
+					t()
+				}
+			}
+		}
+		document.getElementsByTagName("head")[0].appendChild(s)
+	};
+	n = function(w, t) {
+		if (!Array.prototype.forEach) {
+			var s = w.length >>> 0;
+			if (typeof t != "function") {
+				throw new TypeError()
+			}
+			var v = arguments[1];
+			for ( var u = 0; u < s; u++) {
+				if (u in w) {
+					t.call(v, w[u], u, this)
+				}
+			}
+		} else {
+			return Array.prototype.forEach.call(w, t)
+		}
+	};
+	d = function(u) {
+		var v = [], t = [];
+		for ( var s in u) {
+			t = [];
+			t.push(s);
+			t.push("=");
+			t.push(u[s]);
+			v.push(t.join(""))
+		}
+		return v.join("&")
+	};
+	i = function(s) {
+		if (s && typeof s === "object" && s.constructor === Array) {
+			return true
+		}
+	};
+	j = function() {
+		this.observers = [];
+		this.guid = 0
+	};
+	j.prototype.subscribe = function(s) {
+		var t = this.guid++;
+		this.observers[t] = s;
+		return t
+	};
+	j.prototype.unSubscribe = function(s) {
+		delete this.observers[s]
+	};
+	j.prototype.notify = function(t) {
+		for ( var u in this.observers) {
+			var s = this.observers[u];
+			if (s instanceof Function) {
+				s.call(this, t)
+			} else {
+				s.update.call(this, t)
+			}
+		}
+	};
+	e = function(s) {
+		this.onRowsInserted = new j();
+		this.onRowsRemoved = new j();
+		this.onRowsUpdated = new j();
+		this.onSelectedIndexChanged = new j();
+		this.items = [];
+		this.selectedIndex = 0;
+		this.level = s.level || 0;
+		this.label = s.label || "Select..."
+	};
+	e.prototype.read = function(s) {
+		if (s) {
+			k("reading items[" + s + "]:", this.items[s]);
+			return this.items[s]
+		} else {
+			return this.items
+		}
+	};
+	e.prototype.insert = function(s) {
+		if (i(s)) {
+			s = [ s ];
+			this.items = this.items.concat(s)
+		} else {
+			var t = s;
+			this.items.push(t)
+		}
+		this.onRowsInserted.notify({
+			source : this,
+			items : s
+		})
+	};
+	e.prototype.remove = function(t) {
+		var s;
+		if (t) {
+			n(this.items, function(v, u) {
+				if (v.id === t) {
+					s = v;
+					this.items.splice(u, 1)
+				}
+			})
+		} else {
+			this.items = []
+		}
+		k("notifying removing");
+		this.onRowsRemoved.notify({
+			source : this,
+			items : [ s ]
+		})
+	};
+	e.prototype.update = function(s) {
+		s = s || [];
+		k("updating list model with ", s);
+		this.items = [ {
+			id : 0,
+			text : this.label
+		} ].concat(s);
+		k("notifying updating");
+		this.onRowsUpdated.notify({
+			source : this,
+			items : s
+		})
+	};
+	e.prototype.getSelectedIndex = function() {
+		return this.selectedIndex
+	};
+	e.prototype.setSelectedIndex = function(s) {
+		var t = this.getSelectedIndex();
+		if (t === s) {
+			return
+		}
+		this.selectedIndex = s;
+		k("notifying index changed", s);
+		this.onSelectedIndexChanged.notify({
+			source : this,
+			previous : t,
+			present : s,
+			previousItem : this.read(t),
+			presentItem : this.read(s),
+			level : this.level
+		})
+	};
+	b = function(u) {
+		this.model = u.model;
+		this.controller = u.controller;
+		this.element = u.element;
+		var t = q(this, this.rebuildList), s = q(this.controller.parent,
+				this.controller.parent.update);
+		this.model.onRowsInserted.subscribe(t);
+		this.model.onRowsRemoved.subscribe(t);
+		this.model.onRowsUpdated.subscribe(t);
+		this.model.onSelectedIndexChanged.subscribe(s);
+		k("this list item", this);
+		l(this.element, "change", this.controller.updateSelectedIndex,
+				this.controller)
+	};
+	b.prototype.show = function() {
+		this.element.style.display = "inline-block"
+	};
+	b.prototype.hide = function() {
+		this.element.style.display = "none"
+	};
+	b.prototype.rebuildList = function(w) {
+		if (w && w.present && w.present === 0) {
+			this.elements.list.selectedIndex = 0;
+			return
+		}
+		k("Rebuilding list ", this);
+		var v = this.element, s = this.model.read(), u = s.length, t;
+		v.innerHTML = "";
+		k(s.length);
+		n(s, function(y, x) {
+			t = new Option();
+			t.setAttribute("value", y.id ? y.text : '');
+			t.appendChild(document.createTextNode(y.text));
+			v.appendChild(t)
+		});
+		this.model.setSelectedIndex(0)
+	};
+	m = function(s) {
+		this.parent = s.parent;
+		this.model = new e({
+			level : s.level,
+			label : s.label
+		});
+		this.view = new b({
+			model : this.model,
+			controller : this,
+			element : s.element
+		})
+	};
+	m.prototype.refresh = function(s) {
+		k("refresh data with ", s);
+		this.model.update(s)
+	};
+	m.prototype.updateSelectedIndex = function(s) {
+		this.model.setSelectedIndex(s.target.selectedIndex)
+	};
+	m.prototype.selectByText = function(t) {
+		var s = this;
+		n(this.model.read(), function(v, u) {
+			if (v.text.match("^" + t) == t) {
+				k("auto detected ", v, u);
+				s.model.setSelectedIndex(u);
+				s.view.element.selectedIndex = u
+			}
+		})
+	};
+	m.prototype.selectByID = function(s) {
+		var t = this;
+		n(this.model.read(), function(v, u) {
+			if (v.id.toString().match("^" + s) == s) {
+				k("auto detected ", v, u);
+				t.model.setSelectedIndex(u);
+				t.view.element.selectedIndex = u
+			}
+		})
+	};
+	m.prototype.getValue = function() {
+		return this.model.read(this.model.getSelectedIndex()).text
+	};
+	p = function(s) {
+		this.labels = s.labels;
+		this.currentGeo = {};
+		this.lists = [];
+		this.elements = s.elements;
+		this.parent = s.parent
+	};
+	p.prototype.init = function() {
+		k("init select group");
+		var s = 0, u = this.labels.length, t = this;
+		for (; s < u; s++) {
+			this.lists.push(new m({
+				label : this.labels[s],
+				element : this.elements[s],
+				level : s,
+				parent : t
+			}))
+		}
+		k("lists built ", this);
+		k(this.parent.listHelper.find(-1));
+		this.lists[0].refresh(this.parent.listHelper.find(-1));
+		this.lists[0].view.show()
+	};
+	p.prototype.update = function(u) {
+		if (u.level == this.lists.length - 1) {
+			return
+		}
+		k("Updating SelectGroup contents", this);
+		if (u.present === 0) {
+			var s = u.level + 1, t = this.lists.length;
+			for (; s < t; s++) {
+				this.lists[s].refresh();
+				this.lists[s].view.hide()
+			}
+			return
+		}
+		switch (u.level) {
+		case 0:
+			this.currentGeo.province = u.presentItem.text;
+			break;
+		case 1:
+			this.currentGeo.city = u.presentItem.text;
+			break;
+		case 2:
+			this.currentGeo.district = u.presentItem.text;
+			break
+		}
+		this.lists[u.level + 1].refresh(this.parent.listHelper.find(u.level,
+				u.presentItem.id));
+		this.lists[u.level + 1].view.show()
+	};
+	p.prototype.setValues = function(s) {
+		k("setting group values", s);
+		var t = this;
+		n(s, function(v, u) {
+			if (v) {
+				t.lists[u].selectByText(v)
+			}
+		})
+	};
+	p.prototype.setValuesID = function(s) {
+		k("setting group values", s);
+		var t = this;
+		n(s, function(v, u) {
+			if (v) {
+				t.lists[u].selectByID(v)
+			}
+		})
+	};
+	p.prototype.setValuesCode = function(s) {
+		k("setting group values", s);
+		var t = this;
+		n(s, function(v, u) {
+			if (v) {
+				t.lists[u].selectByText(v)
+			}
+		})
+	};
+	p.prototype.getValues = function() {
+		var s = [];
+		n(this.lists, function(u, t) {
+			s.push(u.getValue())
+		});
+		return s
+	};
+	h = function(s) {
+		this.detectGeoLocation = s.detectGeoLocation === undefined ? true
+				: s.detectGeoLocation;
+		this.detector = s.detector || f;
+		this.listHelper = s.listHelper || a.getInstance({
+			dataUrl : s.dataUrl
+		});
+		this.selectGroup = new p({
+			parent : this,
+			labels : s.labels,
+			elements : s.elements
+		});
+		var t = this;
+		this.listHelper.fetch(function() {
+			k("exec fetech callback");
+			t.selectGroup.init();
+			if (t.detectGeoLocation) {
+				t.detector()
+			}
+		})
+	};
+	h.prototype.report = function() {
+		return this.selectGroup.getValues()
+	};
+	h.prototype.select = function(s) {
+		this.selectGroup.setValues(s)
+	};
+	h.prototype.selectID = function(s) {
+		this.selectGroup.setValuesID(s)
+	};
+	f = function() {
+		k("Detect!!!!");
+		var s = this, t;
+		o(
+				"http://j.maxmind.com/app/geoip.js",
+				function() {
+					k("Maxmind API Loaded!");
+					t = "http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20json%20where%0A%20%20url%3D%22http%3A%2F%2Fmaps.google.com%2Fmaps%2Fapi%2Fgeocode%2Fjson%3Flatlng%3D"
+							+ geoip_latitude()
+							+ "%2C"
+							+ geoip_longitude()
+							+ "%26sensor%3Dfalse%26language%3Dzh-CN%22&format=json&diagnostics=true&callback=locationselectcb";
+					r(
+							t,
+							function(u) {
+								k("Geocoder Request Completed through YQL ", u);
+								if (u.query.results.json.status === "OK") {
+									var w = u.query.results.json.results[0].address_components, v = {};
+									k("Geocoder statuts ok", w);
+									n(
+											w,
+											function(z, x) {
+												var y = z.types[0];
+												if (y === "locality") {
+													v.city = z.long_name
+												} else {
+													if (y === "administrative_area_level_1") {
+														v.province = z.long_name
+													}
+												}
+											});
+									s.select([ v.province, v.city ])
+								}
+							})
+				})
+	};
+	a = function() {
+		var s, t = function(v) {
+			var w = v.dataUrl || "js/areas.js", u = function() {
+				var x = {};
+				return {
+					get : function(y) {
+						return x[y]
+					},
+					set : function(y, z) {
+						x[y] = z
+					}
+				}
+			}();
+			return {
+				fetch : function(y) {
+					k("feteching areas data");
+					var x = function(z) {
+						k("area data : ", z);
+						u.set("province", z.province);
+						u.set("city", z.city);
+						u.set("district", z.district);
+						y()
+					};
+					g({
+						url : w,
+						callback : x
+					})
+				},
+				find : function(E, D) {
+					var y = [];
+					k("querying by record id : ", D, "by list in level : ", E);
+					if (u.get(D)) {
+						k("lucky! we have it cached");
+						y = u.get(D)
+					} else {
+						k("finding it in areas data");
+						if (E === -1) {
+							k("this is a query for province data");
+							y = u.get("province")
+						} else {
+							var C = D.toString().substring(0, (E + 1) * 2), A = new RegExp(
+									"^" + C + "\\d*"), z = E === 0 ? u
+									.get("city") : u.get("district"), x = 0, B = z.length;
+							n(z, function(G, F) {
+								if (A.test(G.id)) {
+									y.push(z[F])
+								}
+							})
+						}
+					}
+					k("Return results : ", y);
+					return y
+				}
+			}
+		};
+		return {
+			getInstance : function(u) {
+				if (!s) {
+					s = t(u)
+				}
+				return s
+			}
+		}
+	}();
+	com.elfvision.kit.LocationSelect = h;
+	com.elfvision.ajax.XhrFactory = c;
+	com.elfvision.ajax.getJson = g;
+	com.elfvision.ajax.jsonp = r;
+	com.elfvision.ajax.getScript = o
+})();
+
+if (window.jQuery !== undefined) {
+	$.LocationSelect = {
+		build : function(c) {
+			var b = c, a;
+			b.elements = this.get();
+			a = new com.elfvision.kit.LocationSelect(c);
+			$.LocationSelect.all[b.name] = a;
+			return this
+		}
+	};
 	$.LocationSelect.all = {};
-	
-	$.fn.LocationSelect = $.LocationSelect.build;
-	
-}
+	$.fn.LocationSelect = $.LocationSelect.build
+};

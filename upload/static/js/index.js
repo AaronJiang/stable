@@ -1,71 +1,24 @@
 var cur_page = 0;
 var bp_more_inner_o = '';
 var cur_uid = 0;
-var cur_list_template = 'detail';
 var cur_filter = '';
 
-function reload_list(user_id, filter)
-{
-	if (typeof(user_id) != 'undefined')
-	{
-		cur_uid = user_id;
-	}
-	
-	if (filter)
-	{
-		cur_filter = filter;
-	}
-	else
-	{
-		cur_filter = '';
-	}
-	
-	$('#list_nav a').removeClass('current');
-	
-	/*switch (window.location.hash)
-	{
-		default:
-			$('#list_nav a[href=#all]').addClass('current');
-		break;
-		
-		//case '#competitions':
-		case '#questions':
-			$('#list_nav a[href=' + window.location.hash + ']').addClass('current');
-		break;
-	}*/
-	
+function reload_list()
+{	
 	cur_page = 0;
 	
-	$('#c_list').html('<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/css/img/loading_b.gif" alt="" /></p>');
+	$('#c_list').html('<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/common/loading_b.gif" alt="" /></p>');
 	
 	$('#bp_more').html(bp_more_inner_o);
 	
 	$('#bp_more').click();
 }
 
-$('#list_nav a').click(function () {
-	$('#list_nav a').removeClass('current');
-	
-	$(this).addClass('current');
-	
-	window.location.hash = $(this).attr('href').replace(/#/g, '');
-	
-	cur_page = 0;
-	
-	$('#c_list').html('<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/css/img/loading_b.gif" alt="" /></p>');
-	
-	$('#bp_more').html(bp_more_inner_o);
-	
-	$('#bp_more').click();
-	
-	return false;
-});
-
 $(document).ready(function()
 {
 	if (Number($("#announce_num").html()) > 0)
 	{
-		request_url =G_BASE_URL+ '/notifications/?act=index_more_ajax&inbox=1&type=no&list_all=1&page=0&rnd=' + Math.random() + '&version=2';
+		request_url = G_BASE_URL + '/notifications/ajax/list/flag-0__page-0';
 		
 		$.get(request_url, function (response)
 		{
@@ -78,82 +31,92 @@ $(document).ready(function()
 		});
 	}
 	
-	
-/*	if (Number($("#inbox_num").html()) > 0)
-	{
-		request_url =G_BASE_URL+ '/inbox/?act=index_more_unread_all_ajax&type=unread_all&page=0&rnd=' + Math.random() + '&version=2';
-		
-		$.get(request_url, function (response)
-		{
-			if (response.length)
-			{
-				$("#notification_list").append(response);
-				
-				notification_show(5)
-			}
-		});
-	}	
-*/	
-	
 	bp_more_inner_o = $('#bp_more').html();
 	
-	$('#list_nav a').removeClass('current');
-	
-	/*switch (window.location.hash)
-	{
-		default:
-			$('#list_nav a[href=#all]').addClass('current');
-		break;
-		
-		case '#competitions':
-		case '#questions':
-			$('#list_nav a[href=' + window.location.hash + ']').addClass('current');
-		break;
-	}*/
+	$('#i_tabs a').click(function () {
+		if ($('#c_title').attr('id') != null && $(this).attr('rel'))
+		{
+			$('#i_tabs a, #i_tabs li').removeClass('cur');
+			
+			window.location.hash = $(this).attr('rel');
+			
+			$('#c_title').html($(this).html());
+			
+			$(this).addClass('cur');
+			$(this).parents('li').addClass('cur');
+			
+			reload_list();
+			
+			return false;
+		}
+	});
 	
 	$('#bp_more').click(function()
 	{
 		var _this = this;
-		
-		if (parseInt(cur_uid) > 0)
-		{
-			cur_list_template = 'list';
-		}
-		else
-		{
-			cur_list_template = 'detail';
-		}
+		var index_all= false ;//首页最新动态
 		
 		$("#delete_draft").hide();
 		$("#c_list").removeClass();
 		
+		
 		switch (window.location.hash)
 		{
 			default:
-			case '#all':
-				$('#list_nav a[href=#all]').addClass('current');
-
-				var request_url = G_BASE_URL + '/index/?c=ajax&act=index_actions&page=' + cur_page  + '&rnd=' + Math.random() + '&version=2&type=all&uid=' + cur_uid + '&template=' + cur_list_template + '&filter=' + cur_filter;
+				if (window.location.hash != '#all')
+				{
+					query_string = window.location.hash.replace(/#/g, '').split('__');
+	
+					for (i = 0; i < 3; i++)
+					{
+						if (!query_string[i])
+						{
+							query_string[i] = '';
+						}
+					}
+					
+					if (query_string[1])
+					{
+						cur_filter = query_string[1];
+					}
+					else
+					{
+						cur_filter = '';
+					}
+					
+					if (query_string[2])
+					{
+						cur_uid = query_string[2];
+					}
+					else
+					{
+						cur_uid = 0;
+					}
+					index_all =false;
+				}
+				else
+				{
+					cur_filter = '';
+					cur_uid = 0;
+					index_all = true;
+				}
+				
+				var request_url = G_BASE_URL + '/home/ajax/index_actions/page-' + cur_page + '__type-all__uid-' + cur_uid + '__filter-' + cur_filter;
 			break;
 
-			case '#draft_list&draft':
-				var request_url = G_BASE_URL + '/index/?c=ajax&act=draft&page=' + cur_page  + '&rnd=' + Math.random();
+			case '#draft_list__draft':
+				var request_url = G_BASE_URL + '/home/ajax/draft/page-' + cur_page;
+				
 				$("#c_list").addClass("default_draft");
+				
 				$("#delete_draft").show();
 			break;
 
-			case '#invite_list&invite':
-				var request_url = G_BASE_URL + '/index/?c=ajax&act=invite&page=' + cur_page  + '&rnd=' + Math.random();
+			case '#invite_list__invite':
+				var request_url = G_BASE_URL + '/home/ajax/invite/page-' + cur_page;
+				
 				$("#c_list").addClass("default_draft");
 			break;
-			
-			/*case '#competitions':
-				var request_url = '/index/?c=ajax&act=index_actions&page=' + cur_page  + '&rnd=' + Math.random() + '&version=2&type=competitions&uid=' + cur_uid + '&template=' + cur_list_template + '&filter=' + cur_filter;
-			break;
-			
-			case '#questions':
-				var request_url = '/index/?c=ajax&act=index_actions&page=' + cur_page  + '&rnd=' + Math.random() + '&version=2&type=questions&uid=' + cur_uid + '&template=' + cur_list_template + '&filter=' + cur_filter;
-			break;*/
 		}
 		
 		$(this).addClass('loading');
@@ -175,6 +138,7 @@ $(document).ready(function()
 				cur_page++;
 				
 				$(_this).html(bp_more_inner_o); 
+				
 			}
 			else
 			{
@@ -189,29 +153,20 @@ $(document).ready(function()
 			}
 			
 			$(_this).removeClass('loading');
+			index_all ? $('#c_list >.S_module').addClass('index_module'):'';
 			
-		});
+		})
 		
 		return false;
 	});
 	
-	var query_string = window.location.hash.replace(/#/g, '').split('&');
-	
-	for (i = 0; i < 3; i++)
+	if ($('#i_tabs a[rel=' + window.location.hash.replace(/#/g, '') + ']').attr('href'))
 	{
-		if (!query_string[i])
-		{
-			query_string[i] = '';
-		}
-	}
-	
-	if ($('#i_tabs a[rel=all_' + query_string[1] + '_' + query_string[2] + ']').attr('href'))
-	{
-		$('#i_tabs a[rel=all_' + query_string[1] + '_' + query_string[2] + ']').click();
+		$('#i_tabs a[rel=' + window.location.hash.replace(/#/g, '') + ']').click();
 	}
 	else
 	{
-		$('#bp_more').click();
+		$('#i_tabs a[rel=all]').click();
 	}
 });
 
@@ -223,143 +178,90 @@ function _welcome_step_1_form_processer(result)
 	}
 	else
 	{
-		$('#welcome_step_1_next_link').click();
+		welcome_step_2_load();
 	}
 }
 
 function welcome_step_1_load()
 {
-	new DialogBox_show('800', $('#welcome_step1').html(), '欢迎来到 ' + G_SITE_NAME, '', function() {
-		var w = document.getElementById('w_tagPupD');
-		var R = document.documentElement.scrollHeight || document.body.scrollHeight; 
-		w.style.position = 'absolute';
-		w.style.top = '120px';
-		w.style.marginTop = '0px';
-		document.getElementsByTagName("body")[0].style.position ='relative';
-		
-		$('#welcome_step1').remove();
-			
-		$(".select_area").LocationSelect({
-        	labels: ["请选择省份或直辖市", "请选择城市", "请选择区"],
-        
-        	elements: document.getElementsByTagName("select"),
-        
-        	detector: function () {
-           		this.selectID(["", "", ""]);
-       		},	// 默认显示的城市
-        
-			dataUrl: G_STATIC_URL + "/js/areas_1.0.json"
-		});
-		
-		init_avatar_uploader($('#welcome_avatar_uploader'), $('#welcome_avatar_uploading_status'), $("#welcome_avatar_src"));
-	});
-}
-
-function welcome_step_4_load()
-{
-	new DialogBox_show('800', $('#welcome_step_2').html(), '欢迎来到 ' + G_SITE_NAME, '', function() {
-		var w = document.getElementById('w_tagPupD');
-		var R = document.documentElement.scrollHeight || document.body.scrollHeight; w.style.position = 'absolute';
-		
-		w.style.top = '120px';
-		w.style.marginTop = '0px';
-		document.getElementsByTagName("body")[0].style.position ='relative';
-		
-		$('#welcome_step_2').remove();
+	var elem_mask = document.createElement('div');
+	var height = Math.max(document.body.clientHeight,document.documentElement.scrollHeight,document.body.scrollHeight);
+	var width =  Math.max(document.body.clientWidth,document.documentElement.scrollWidth,document.body.scrollWidth);
+	elem_mask.style.cssText = 'width:'+width+'px;height:'+height+'px';
+	elem_mask.className = 'i_mask i_pas i_alpha_login';
+	elem_mask.id = 'xd_mask';
+	document.body.appendChild(elem_mask);
 	
-		$('#welcome_reload_topics_list').click(function () {
-			$('#welcome_topics_list').html('<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/css/img/loading_b.gif" alt="" /></p>');
-		
-			$.get(G_BASE_URL + '/account/?c=ajax&act=welcome_get_topics&version=3', function (result) {
-				$('#welcome_topics_list').html(result);
-			});
-		
-			return false;
-		});
-		
-		$('#welcome_reload_topics_list').click();
+	var elem_data = document.createElement('div');
+	elem_data.id = 'xd_data';
+	document.body.appendChild(elem_data);
+	
+	document.getElementById('xd_data').innerHTML = $('#welcome_step1').html();
+	
+	$('#welcome_step1').remove();
+	
+	$(".select_area").LocationSelect({
+        labels: ["请选择省份或直辖市", "请选择城市"],
+        
+        elements: document.getElementsByTagName("select"),
+        
+        detector: function () {
+	  		this.selectID(["", ""]);
+   		},	// 默认显示的城市
+        
+		dataUrl: G_BASE_URL + '/account/ajax/areas_json_data/'
 	});
+		
+	init_avatar_uploader($('#welcome_avatar_uploader'), $('#welcome_avatar_uploading_status'), $("#welcome_avatar_src"));
 }
 
 function welcome_step_2_load()
 {
-	return welcome_step_3_load();
+	document.getElementById('xd_data').innerHTML = $('#welcome_step2').html();
+	
+	$('#welcome_step2').remove();
+	
+	$('#welcome_topics_list').html('<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/common/loading_b.gif" alt="" /></p>');
+		
+	$.get(G_BASE_URL + '/account/ajax/welcome_get_topics/', function (result) {
+		$('#welcome_topics_list').html(result);
+	});
 }
 
 function welcome_step_3_load()
 {
-	new DialogBox_show('800', $('#welcome_step_4').html(), '欢迎来到 ' + G_SITE_NAME, '', function() {
-		var w = document.getElementById('w_tagPupD');
-		var R = document.documentElement.scrollHeight || document.body.scrollHeight; w.style.position = 'absolute';
-		
-		w.style.top = '120px';
-		w.style.marginTop = '0px';
-		document.getElementsByTagName("body")[0].style.position ='relative';
-		
-		$('#welcome_step_4').remove();
+	document.getElementById('xd_data').innerHTML = $('#welcome_step3').html();
 	
-		$('#welcome_reload_questions_list').click(function () {
-			$('#welcome_questions_list').html('<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/css/img/loading_b.gif" alt="" /></p>');
-		
-			$.get(G_BASE_URL + '/account/?c=ajax&act=welcome_get_questions&version=3', function (result) {
-				$('#welcome_questions_list').html(result);
-			});
-		
-			return false;
-		});
-		
-		$('#welcome_reload_questions_list').click();
-	});
-}
-
-function welcome_step_5_load()
-{
-	new DialogBox_show('800', $('#welcome_step_5').html(), '欢迎来到 ' + G_SITE_NAME, '', function() {
-		var w = document.getElementById('w_tagPupD');
-		var R = document.documentElement.scrollHeight || document.body.scrollHeight; w.style.position = 'absolute';
-		
-		w.style.top = '120px';
-		w.style.marginTop = '0px';
-		document.getElementsByTagName("body")[0].style.position ='relative';
-		
-		$('#welcome_step_5').remove();
+	$('#welcome_step3').remove();
 	
-		$('#welcome_reload_users_list').click(function () {
-			$('#welcome_users_list').html('<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/css/img/loading_b.gif" alt="" /></p>');
+	$('#welcome_users_list').html('<p style="padding: 15px 0" align="center"><img src="' + G_STATIC_URL + '/common/loading_b.gif" alt="" /></p>');
 		
-			$.get(G_BASE_URL + '/account/?c=ajax&act=welcome_get_users&version=3', function (result) {
-				$('#welcome_users_list').html(result);
-			});
-		
-			return false;
-		});
-		
-		$('#welcome_reload_users_list').click();
-		$('#welcome_reload_users_list').hide();
+	$.get(G_BASE_URL + '/account/ajax/welcome_get_users/', function (result) {
+		$('#welcome_users_list').html(result);
 	});
 }
 
 function welcome_step_finish()
 {
-	hidePupBox('w_tagPupD', 'w_mask');
+	$('#xd_data, #xd_mask').remove();
 	
-	$.get(G_BASE_URL + '/account/?c=ajax&act=clean_first_login', function (result)
+	$.get(G_BASE_URL + '/account/ajax/clean_first_login/', function (result)
 	{
-		window.location = G_BASE_URL;
+		//window.location = G_BASE_URL + '/home/';
 	});
 }
 
 function check_actions_new(uid, time)
 {
-	var url = G_BASE_URL+"/index/?c=ajax&act=check_actions_new&uid=" + uid + "&time=" + time + "&rnd=" + Math.random();
+	var url = G_BASE_URL + "/home/ajax/check_actions_new/uid-" + uid + "__time-" + time;
 
-	$.getJSON(url, function (result) 
+	$.get(url, function (result) 
 	{
-		if(result.errno == 1)
+		if (result.errno == 1)
 		{
-			if(result.rsm.new_count > 0)
+			if (result.rsm.new_count > 0)
 			{
-				if($("#new_actions_tip").is(":hidden"))
+				if ($("#new_actions_tip").is(":hidden"))
 				{
 					$("#new_actions_tip").fadeIn();
 				}
@@ -367,6 +269,5 @@ function check_actions_new(uid, time)
 				$("#new_action_num").html(result.rsm.new_count);
 			}
 		}
-	});
-	
+	}, 'json');
 }
